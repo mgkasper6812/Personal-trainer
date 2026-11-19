@@ -39,13 +39,13 @@ Quick check-in, natural-language chat (text/voice), detailed logging, device dat
 
 ## Tech
 - Next.js on **Vercel** (installable PWA, web push on iOS 16.4+ from home screen)
-- Postgres database (provider: TBD) — family accounts, parent/athlete roles
+- **Upstash Redis** (same as the Twitter app) for all data; **Vercel Blob** later for photos/files. Family accounts with parent/athlete roles
 - **Claude API** coach — per-person system prompts with guardrails; fast model for logging/nudges, stronger model for programs/chat; in-app usage/cost meter (budget TBD)
 - Vercel Cron — morning plans, evening nudges
 - Accounts already in place: Vercel, database, Claude API key
 
 ## Build order
-1. **v1 — Today's plan:** login, onboarding chat (collects stats, schedule, goals; Maicie's baseline tests), program generation, today's plan with checkboxes, daily check-in.
+1. **v1 — Today's plan (built):** login, onboarding chat (collects stats, schedule, goals; Maicie's baseline tests), program generation, today's plan with checkboxes, daily check-in.
 2. **v2:** coach chat (text/voice) with auto-logging, morning/evening push notifications, pain alert to Mike.
 3. **v3:** test results & progress charts, Apple Health Shortcut, 4-week rebalancing.
 4. **Later:** photo food logging, more family members.
