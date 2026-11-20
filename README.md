@@ -11,7 +11,7 @@ Stack: Next.js on Vercel · Upstash Redis · Claude API (`claude-opus-5-5`, with
 ## Deploy to Vercel
 
 1. In Vercel: **Add New → Project**, import `mgkasper6812/Personal-trainer`, choose this branch (or `main` once merged).
-2. **Storage → Upstash for Redis**: connect a new or existing database to the project. This sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`.
+2. **Storage → Upstash for Redis**: connect a database to the project — your existing one is fine. All of this app's keys start with `ft:`, so they never collide with another app's data. This sets `KV_REST_API_URL` and `KV_REST_API_TOKEN`.
 3. **Settings → Environment Variables**, add:
    - `ANTHROPIC_API_KEY` — from console.anthropic.com
    - `SESSION_SECRET` — any long random string (e.g. run `openssl rand -base64 32`)

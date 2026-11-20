@@ -16,17 +16,20 @@ function redisStore(): Store | null {
   const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) return null;
   const r = new Redis({ url, token });
+  // Every key is namespaced so this app can safely share a database with other apps.
+  const ns = process.env.KEY_PREFIX ?? "ft:";
+  const k = (key: string) => ns + key;
   return {
-    get: async <T,>(k: string) => (await r.get<T>(k)) ?? null,
-    set: async (k, v) => { await r.set(k, v); },
-    del: async (k) => { await r.del(k); },
-    incrby: async (k, by) => { await r.incrby(k, Math.round(by)); },
+    get: async <T,>(key: string) => (await r.get<T>(k(key))) ?? null,
+    set: async (key, v) => { await r.set(k(key), v); },
+    del: async (key) => { await r.del(k(key)); },
+    incrby: async (key, by) => { await r.incrby(k(key), Math.round(by)); },
     keys: async (prefix) => {
       const out: string[] = [];
       let cursor: string | number = 0;
       do {
-        const [next, batch]: [string | number, string[]] = await r.scan(cursor, { match: `${prefix}*`, count: 200 });
-        out.push(...batch);
+        const [next, batch]: [string | number, string[]] = await r.scan(cursor, { match: `${k(prefix)}*`, count: 200 });
+        out.push(...batch.map((key) => key.slice(ns.length)));
         cursor = next;
       } while (String(cursor) !== "0");
       return out;
