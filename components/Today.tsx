@@ -13,7 +13,7 @@ type TodayRes = {
   user: { id: string; name: string; role: "parent" | "athlete"; self: boolean };
   date: string; weekday: string; hasProfile: boolean; hasProgram: boolean; profileKind: "adult" | "athlete" | null;
   program: { title: string; week: number; blockWeeks: number; weekInfo: { theme: string; deload: boolean } | null } | null;
-  slotNote: string | null; routine: Routine | null; baseRoutineKey: string | null; readiness: Readiness | null;
+  slotNote: string | null; startDate: string | null; routine: Routine | null; baseRoutineKey: string | null; readiness: Readiness | null;
   checkIn: CheckIn | null; evening: EveningLog | null;
   tonight: { tvTime: string; kitchenCloses: string | null; swaps: string[]; plan: string | null } | null;
   nutrition: { calories: number; proteinG: number; carbApproach: string } | null; fueling: string | null; habits: string[];
@@ -130,6 +130,16 @@ function PlanCard({ d, date, self }: { d: TodayRes; date: string; self: boolean 
       ))}
     </div>
   );
+  if (d.startDate && date < d.startDate) {
+    const days = Math.round((Date.parse(`${d.startDate}T12:00:00`) - Date.parse(`${date}T12:00:00`)) / 86400000);
+    return (
+      <div className="card">
+        <h2>{d.slotNote}</h2>
+        <p className="small muted">{days} day{days === 1 ? "" : "s"} to go. {d.profileKind === "adult" ? "Start the habits now: post-dinner walk and your evening swap." : "Rest up, and get your gear ready for Test Day."}</p>
+        {self && <Link href="/routines" className="small">Change start date</Link>}
+      </div>
+    );
+  }
   if (!d.routine) return (
     <div className="card">
       <h2>{d.slotNote ?? "Rest day"}</h2>

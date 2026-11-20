@@ -20,7 +20,8 @@ export const GET = handle(async (req) => {
   ]);
   const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
   const p = rec?.program;
-  const slot = p?.schedule.find((s) => s.dayOfWeek === dow) ?? null;
+  const notStarted = !!rec && date < rec.startDate;
+  const slot = notStarted ? null : p?.schedule.find((s) => s.dayOfWeek === dow) ?? null;
   const base = slot?.routineKey ? p!.routines.find((r) => r.key === slot.routineKey) ?? null : null;
   const readiness = profile ? evaluate(profile, target.name, checkIn, yesterday, base) : null;
   const routine = base && readiness ? adjustRoutine(base, readiness) : base;
@@ -32,7 +33,7 @@ export const GET = handle(async (req) => {
     const dw = new Date(`${d}T12:00:00Z`).getUTCDay();
     const s = p?.schedule.find((x) => x.dayOfWeek === dw);
     const r = s?.routineKey ? p!.routines.find((x) => x.key === s.routineKey) : null;
-    return { date: d, dow: dw, routine: r?.name ?? null, done: workouts.some((w) => w.date === d) };
+    return { date: d, dow: dw, routine: rec && d >= rec.startDate ? r?.name ?? null : null, done: workouts.some((w) => w.date === d) };
   });
 
   return ok({
@@ -43,7 +44,8 @@ export const GET = handle(async (req) => {
     hasProgram: !!rec,
     profileKind: profile?.kind ?? null,
     program: p ? { title: p.title, week, blockWeeks: p.blockWeeks, weekInfo: p.weeks.find((w) => w.week === week) ?? null } : null,
-    slotNote: slot?.note ?? null,
+    slotNote: notStarted ? `Program starts ${weekdayName(rec!.startDate)}, ${rec!.startDate.slice(5).replace("-", "/")}` : slot?.note ?? null,
+    startDate: rec?.startDate ?? null,
     routine,
     baseRoutineKey: base?.key ?? null,
     readiness,

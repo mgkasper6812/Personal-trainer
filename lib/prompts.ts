@@ -33,7 +33,7 @@ export function coachSystem(role: Role) {
 }
 
 export function programRequest(role: Role, name: string, profile: Profile, startDate: string) {
-  const common = `Build a ${4}-week training block for ${name}, starting Monday ${startDate}, as a set of reusable routines
+  const common = `Build a ${4}-week training block for ${name}, starting ${startDate}, as a set of reusable routines
 (like a workout app's routines) plus a weekly schedule. Use ONLY exercise ids from this library (id | name | kind | equipment).
 Pick only exercises they have equipment for.
 

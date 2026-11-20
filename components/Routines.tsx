@@ -19,10 +19,16 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
     api<{ name: string; self: boolean; record: ProgramRecord | null }>(`/api/program${viewUser ? `?user=${viewUser}` : ""}`).then(setR, (e) => setErr(e.message));
   }, [viewUser]);
 
+  async function changeStart(startDate: string) {
+    if (!startDate) return;
+    try { const x = await api<{ record: ProgramRecord }>("/api/program", { method: "PATCH", body: { startDate } }); setR((c) => (c ? { ...c, record: x.record } : c)); }
+    catch (e) { setErr((e as Error).message); }
+  }
+
   async function regenerate() {
     if (!confirm("Ask the coach to build a fresh program from your profile? Your current routines will be replaced (history is kept).")) return;
     setBusy(true); setErr("");
-    try { const x = await api<{ record: ProgramRecord }>("/api/program", { body: { date: localDate() } }); setR((c) => (c ? { ...c, record: x.record } : c)); }
+    try { const x = await api<{ record: ProgramRecord }>("/api/program", { body: { date: localDate(), startDate: r?.record?.startDate } }); setR((c) => (c ? { ...c, record: x.record } : c)); }
     catch (e) { setErr((e as Error).message); }
     setBusy(false);
   }
@@ -39,6 +45,11 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
         <div className="card">
           <h2>{p.title}</h2>
           <p className="small">{p.summary}</p>
+          <div className="row between small" style={{ flexWrap: "nowrap" }}>
+            <span>Starts</span>
+            {r.self ? <input type="date" value={r.record!.startDate} onChange={(e) => changeStart(e.target.value)} style={{ maxWidth: 180 }} aria-label="Program start date" />
+              : <b>{r.record!.startDate}</b>}
+          </div>
           <div className="week-grid">
             {[1, 2, 3, 4, 5, 6, 0].map((d) => {
               const s = p.schedule.find((x) => x.dayOfWeek === d);

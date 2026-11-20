@@ -201,6 +201,11 @@ export default function Setup({ role, initial }: { role: "parent" | "athlete"; i
   const step = steps[i];
   const set = (patch: Partial<Profile>) => setP((x) => ({ ...x, ...patch }) as Profile);
   const last = i === steps.length - 1;
+  const today = localDate();
+  const nextMonday = (() => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return localDate(d); })();
+  const [startChoice, setStartChoice] = useState<"today" | "monday" | "pick">("today");
+  const [pickDate, setPickDate] = useState(nextMonday);
+  const startDate = startChoice === "today" ? today : startChoice === "monday" ? nextMonday : pickDate;
 
   async function finish() {
     setErr("");
@@ -208,7 +213,7 @@ export default function Setup({ role, initial }: { role: "parent" | "athlete"; i
       setBusy("Saving…");
       await api("/api/profile", { body: { profile: p } });
       setBusy("Your coach is building your program — about a minute…");
-      await api("/api/program", { body: { date: localDate() } });
+      await api("/api/program", { body: { date: today, startDate } });
       window.location.href = "/today";
     } catch (e) {
       setErr((e as Error).message);
@@ -223,6 +228,14 @@ export default function Setup({ role, initial }: { role: "parent" | "athlete"; i
       <h1>{step.title}</h1>
       {step.sub && <p className="muted" style={{ marginTop: -6, marginBottom: 18 }}>{step.sub}</p>}
       {step.render(p, set)}
+      {last && (
+        <Field label="When do you want to start?" hint="Week 1 begins on this day. You can change it later on the Workout tab.">
+          <Segmented options={["today", "monday", "pick"] as const} value={startChoice} onChange={setStartChoice}
+            labels={{ today: "Today", monday: "Next Monday", pick: "Pick a date" }} />
+          {startChoice === "pick" && <input type="date" value={pickDate} min={today} onChange={(e) => setPickDate(e.target.value)} style={{ marginTop: 10, maxWidth: 200 }} />}
+          <p className="small muted" style={{ marginTop: 6 }}>Starts {new Date(`${startDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+        </Field>
+      )}
       {err && <p className="error">{err}</p>}
       {busy && <p className="muted"><span className="spinner" />{busy}</p>}
       <div className="wizard-nav">
