@@ -59,7 +59,8 @@ async function ask<S extends z.ZodType>(
 ): Promise<{ data: z.infer<S>; content: Anthropic.Beta.BetaContentBlockParam[] }> {
   let res;
   try {
-    res = await client().beta.messages.parse({
+    // Streamed so long answers (like a full program) don't hit the SDK's non-streaming limit.
+    res = await client().beta.messages.stream({
       model: MODEL,
       max_tokens: opts.maxTokens ?? 16000,
       system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
@@ -68,12 +69,13 @@ async function ask<S extends z.ZodType>(
       // If a safety classifier declines, retry server-side on Anthropic's recommended fallback model.
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
-    });
+    }).finalMessage();
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) throw new CoachError("The coach is busy right now. Try again in a minute.");
     if (e instanceof Anthropic.AuthenticationError) throw new CoachError("The Claude API key is missing or invalid.");
     if (e instanceof Anthropic.APIConnectionError) throw new CoachError("Couldn't reach the coach. Check your connection.");
     if (e instanceof Anthropic.APIError) throw new CoachError(`Coach error (${e.status}). Try again.`);
+    if (e instanceof Anthropic.AnthropicError) throw new CoachError(`Coach error: ${e.message}`);
     throw e;
   }
   await recordUsage(res.model, res.usage);
@@ -102,10 +104,12 @@ export async function onboardingTurn(role: Role, name: string, state: Onboarding
     ? { data: mock.onboarding(role, state.display.length), content: [] as Anthropic.Beta.BetaContentBlockParam[] }
     : await ask(OnboardingTurn, { system: onboardingSystem(role), messages, effort: "low", maxTokens: 4000 });
   messages.push({ role: "assistant", content: content.length ? content : [{ type: "text", text: JSON.stringify(data) }] });
+  // A message that still asks a question can't end setup.
+  const complete = data.complete && !data.message.includes("?");
   const display = [...state.display];
   if (userText !== null) display.push({ role: "me", text: userText });
   display.push({ role: "coach", text: data.message });
-  return { messages, display, complete: data.complete } satisfies OnboardingState;
+  return { messages, display, complete } satisfies OnboardingState;
 }
 
 export async function extractProfile(role: Role, display: OnboardingState["display"]): Promise<Profile> {

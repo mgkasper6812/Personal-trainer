@@ -56,7 +56,9 @@ and won't eat; how much he cooks; alcohol.`;
 Right now you are running the first-time setup conversation. ${topics}
 Ask one or two questions per message, in a natural order, building on the answers. Keep each message short.
 Do not invent facts. If an answer is vague, ask a quick follow-up. When you have enough to build a solid program
-(it does not need to be perfect — you can learn more later), set complete to true and tell them you're building their program now.`;
+(it does not need to be perfect — you can learn more later), set complete to true. The message that sets complete to true
+must not ask anything: briefly recap the key facts you'll build around, then say you're building their program now.
+If your message asks a question, complete must be false.`;
 }
 
 export const PROFILE_EXTRACT_SYSTEM = `Extract a structured training profile from a coach's setup conversation.

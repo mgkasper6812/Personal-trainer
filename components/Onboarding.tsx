@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, localDate } from "@/lib/client";
 
 type Line = { role: "coach" | "me"; text: string };
-type Res = { display: Line[]; complete: boolean; built?: boolean; hasProgram?: boolean; name?: string };
+type Res = { display: Line[]; complete: boolean; built?: boolean; hasProgram?: boolean; name?: string; stage?: string };
 
 export default function Onboarding({ viewUser }: { viewUser: string | null }) {
   const [lines, setLines] = useState<Line[]>([]);
@@ -48,7 +48,7 @@ export default function Onboarding({ viewUser }: { viewUser: string | null }) {
       setLines(r.display);
       setComplete(r.complete);
       setBuilt(!!r.built);
-      if (r.complete && !r.built) return send("build");
+      if (r.complete && !r.built) return send("build"); // profile step, then program step
     } catch (e) {
       setErr((e as Error).message);
       if (msg) setText(msg);
@@ -90,7 +90,7 @@ export default function Onboarding({ viewUser }: { viewUser: string | null }) {
           <button className="primary" onClick={() => (window.location.href = "/today")}>See today&apos;s plan</button>
         </div>
       ) : (
-        !complete && (
+        (!complete || (!!err && !busy)) && (
           <form className="composer" onSubmit={submit}>
             <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type your answer…"
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) submit(e); }} />
