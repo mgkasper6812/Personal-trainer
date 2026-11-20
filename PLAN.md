@@ -44,8 +44,30 @@ Quick check-in, natural-language chat (text/voice), detailed logging, device dat
 - Vercel Cron — morning plans, evening nudges
 - Accounts already in place: Vercel, database, Claude API key
 
-## Build order
-1. **v1 — Today's plan (built):** login, onboarding chat (collects stats, schedule, goals; Maicie's baseline tests), program generation, today's plan with checkboxes, daily check-in.
-2. **v2:** coach chat (text/voice) with auto-logging, morning/evening push notifications, pain alert to Mike.
-3. **v3:** test results & progress charts, Apple Health Shortcut, 4-week rebalancing.
-4. **Later:** photo food logging, more family members.
+## Build order (revised after competitive research — see reports/Fitness coaching app teardown.md)
+
+### Phase 1 — rebuild (in progress)
+- **Tap-first onboarding** (~10 screens each, chips/steppers/pickers, ≤3 optional text boxes). Dad's flow includes health
+  context (prediabetes/insulin resistance, meds), toughest time of day, evening snacks and an if-then evening plan.
+  Maicie's flow starts with what Dad can see, then profile, priorities, schedule, gear, lifting background, starting numbers,
+  hitting-coach cues and a body check.
+- **AI-built program as Hevy-style routines**: one routine per training day, exercises from a built-in library,
+  target sets/reps/weight/rest. Editable.
+- **Hevy-style workout logger**: previous values inline and pre-filled, one-tap set completion, set types (warm-up, normal,
+  drop, failure), RPE, rest timer stored as an end time, supersets, notes, add/swap exercises, finish summary with PRs.
+  Hitting (swings + bat speed/exit velo), sprints (time + method) and throws are first-class exercise types.
+- **History & progress**: workout history, per-exercise charts (est. 1RM, best set, volume, top bat speed), PRs.
+- **Today**: 30-second check-in with a separate pain question (area, 0–10, sharp/achy, with throwing); a rule engine
+  adjusts today's routine and explains why. Dad's **Tonight** card (kitchen-closed time, planned swap, one-tap evening log).
+- **Condition-aware coaching** for Dad (DPP-style 5–7% goal, post-meal walks, 2–3x/wk strength, 150 min/wk, carb quality,
+  if-then snack plans; doctor leads on A1C/meds). Performance-only fueling for Maicie; no weight anywhere on her account.
+- **Parent view**: Maicie's status (green/amber/red), completed workouts, test results, pain alerts. Her free-text notes stay private.
+- **Apple Watch**: record the workout on the Watch; a one-tap iOS Shortcut sends heart rate, calories and duration from
+  Apple Health into the app and attaches them to the logged workout.
+
+### Phase 2
+Weight trend from Health sync + Sunday check-in for Dad; 4-week test scorecards for Maicie; consistency calendar with grace
+days; session RPE / throw-count load view; morning + pre-TV push notifications; coach chat.
+
+### Phase 3
+Photo/text food logging, Blast CSV import, glucose import, weekly lessons, swing video, family cheers.

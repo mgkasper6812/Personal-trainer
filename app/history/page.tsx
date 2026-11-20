@@ -1,4 +1,4 @@
-import ProgramView from "@/components/ProgramView";
+import History from "@/components/History";
 import TabBar from "@/components/TabBar";
 import { pageUser } from "@/lib/page";
 
@@ -6,11 +6,6 @@ export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ user?: string }> }) {
   const { user } = await searchParams;
-  const me = await pageUser({ needsProgram: !user });
-  return (
-    <>
-      <ProgramView viewUser={user && user !== me.id ? user : null} />
-      <TabBar role={me.role} />
-    </>
-  );
+  const me = await pageUser();
+  return (<><History viewUser={user && user !== me.id ? user : null} /><TabBar role={me.role} /></>);
 }

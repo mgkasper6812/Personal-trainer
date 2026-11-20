@@ -2,9 +2,11 @@
 
 AI-coached training for Dad (weight loss) and Maicie (softball off-season). See [PLAN.md](PLAN.md) for the full plan.
 
-**Version 1 includes:** family logins (parent and athlete), a setup chat with the coach, an AI-built 4-week program,
-a daily check-in, a daily plan you check off, pain alerts to the parent, a parent view of Maicie's day/program/chat, and an
-AI cost meter.
+**What it does:** tap-first setup for each person → an AI-built 4-week program of Hevy-style routines → a live
+workout logger (previous values, set types, rest timer, supersets, PRs, per-exercise charts) → a 30-second daily check-in
+whose pain/readiness rules adjust the day's session and alert the parent. Dad gets condition-aware guidance
+(prediabetes / insulin resistance) and a nightly "Tonight" plan; Maicie gets hitting, speed, throwing and test tracking
+with performance-only fueling. Apple Watch heart rate and calories sync through an iPhone Shortcut (Settings → Apple Watch sync).
 
 Stack: Next.js on Vercel · Upstash Redis · Claude API (`claude-opus-5-5`, with server-side refusal fallback).
 

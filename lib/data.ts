@@ -1,50 +1,79 @@
 import { db } from "./db";
-import { addDays, daysBetween } from "./dates";
-import type { DailyPlan, Profile, Program } from "./schemas";
-import type { Alert, CheckIn } from "./types";
-import type { OnboardingState } from "./coach";
+import { addDays } from "./dates";
+import type { Program } from "./schemas";
+import type { ExercisePoint } from "./stats";
+import type { Alert, CheckIn, EveningLog, Profile, Workout, WorkoutSummary } from "./types";
 
 export type ProgramRecord = { program: Program; startDate: string; createdAt: string };
-export type PlanRecord = { plan: DailyPlan; generatedAt: string; checkInAt: string | null; done: string[] };
+export type ExerciseStats = { last: { date: string; sets: Workout["exercises"][number]["sets"] } | null; history: ExercisePoint[] };
 
-export const getOnboarding = (uid: string) => db().get<OnboardingState>(`onboarding:${uid}`);
-export const saveOnboarding = (uid: string, s: OnboardingState) => db().set(`onboarding:${uid}`, s);
-
-export const getProfile = (uid: string) => db().get<Profile>(`profile:${uid}`);
+// Profiles saved before the tap-first setup have no `kind`; treat them as missing so setup runs again.
+export const getProfile = async (uid: string) => {
+  const p = await db().get<Profile>(`profile:${uid}`);
+  return p && (p as { kind?: string }).kind ? p : null;
+};
 export const saveProfile = (uid: string, p: Profile) => db().set(`profile:${uid}`, p);
 
-export const getProgram = (uid: string) => db().get<ProgramRecord>(`program:${uid}`);
-export const saveProgram = (uid: string, r: ProgramRecord) => db().set(`program:${uid}`, r);
+export const getProgram = (uid: string) => db().get<ProgramRecord>(`program2:${uid}`);
+export const saveProgram = (uid: string, r: ProgramRecord) => db().set(`program2:${uid}`, r);
 
-export const getCheckIn = (uid: string, date: string) => db().get<CheckIn>(`checkin:${uid}:${date}`);
-export const saveCheckIn = (uid: string, c: CheckIn) => db().set(`checkin:${uid}:${c.date}`, c);
+export const getCheckIn = (uid: string, date: string) => db().get<CheckIn>(`checkin2:${uid}:${date}`);
+export const saveCheckIn = (uid: string, c: CheckIn) => db().set(`checkin2:${uid}:${c.date}`, c);
+export const getYesterdayCheckIn = (uid: string, date: string) => getCheckIn(uid, addDays(date, -1));
 
-export const getPlan = (uid: string, date: string) => db().get<PlanRecord>(`plan:${uid}:${date}`);
-export const savePlan = (uid: string, date: string, r: PlanRecord) => db().set(`plan:${uid}:${date}`, r);
+export const getEvening = (uid: string, date: string) => db().get<EveningLog>(`evening:${uid}:${date}`);
+export const saveEvening = (uid: string, date: string, v: EveningLog) => db().set(`evening:${uid}:${date}`, v);
 
-export function blockWeek(rec: ProgramRecord, date: string) {
-  const d = daysBetween(rec.startDate, date);
-  return d < 0 ? 1 : Math.floor(d / 7) + 1;
+// ---- Workouts
+export const getWorkout = (uid: string, id: string) => db().get<Workout>(`workout:${uid}:${id}`);
+export const listWorkouts = async (uid: string) => (await db().get<WorkoutSummary[]>(`workouts:${uid}`)) ?? [];
+export async function putWorkout(uid: string, w: Workout) {
+  await db().set(`workout:${uid}:${w.id}`, w);
+  const list = (await listWorkouts(uid)).filter((x) => x.id !== w.id);
+  list.unshift({
+    id: w.id, date: w.date, name: w.name, startedAt: w.startedAt, endedAt: w.endedAt,
+    volume: w.stats.volume, sets: w.stats.sets, prs: w.stats.prs.length, watch: !!w.watch,
+  });
+  list.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  await db().set(`workouts:${uid}`, list);
+}
+export async function deleteWorkout(uid: string, id: string) {
+  await db().del(`workout:${uid}:${id}`);
+  await db().set(`workouts:${uid}`, (await listWorkouts(uid)).filter((x) => x.id !== id));
 }
 
-export async function recentHistory(uid: string, date: string, days = 7) {
-  const dates = Array.from({ length: days }, (_, i) => addDays(date, -(i + 1)));
-  return Promise.all(
-    dates.map(async (d) => {
-      const [checkIn, plan] = await Promise.all([getCheckIn(uid, d), getPlan(uid, d)]);
-      const total = plan ? plan.plan.sections.reduce((a, s) => a + s.items.length, 0) : 0;
-      return { date: d, checkIn, completed: plan ? `${plan.done.length}/${total} items` : "no plan" };
-    }),
-  );
-}
+export const getExerciseStats = async (uid: string, exId: string) =>
+  (await db().get<ExerciseStats>(`exstats:${uid}:${exId}`)) ?? { last: null, history: [] };
+export const saveExerciseStats = (uid: string, exId: string, s: ExerciseStats) => db().set(`exstats:${uid}:${exId}`, s);
 
+// ---- Alerts (family-wide)
 export const getAlerts = async () => (await db().get<Alert[]>("family:alerts")) ?? [];
 export async function addAlert(a: Omit<Alert, "id" | "createdAt" | "seen">) {
-  const alerts = await getAlerts();
+  const alerts = (await getAlerts()).filter((x) => !(x.athleteId === a.athleteId && x.date === a.date)); // one per athlete per day
   alerts.unshift({ ...a, id: crypto.randomUUID(), createdAt: new Date().toISOString(), seen: false });
   await db().set("family:alerts", alerts.slice(0, 100));
 }
 export async function markAlertsSeen() {
-  const alerts = await getAlerts();
-  await db().set("family:alerts", alerts.map((a) => ({ ...a, seen: true })));
+  await db().set("family:alerts", (await getAlerts()).map((a) => ({ ...a, seen: true })));
+}
+
+// ---- Apple Health sync token
+export const getHealthToken = (uid: string) => db().get<string>(`healthtoken-of:${uid}`);
+export async function newHealthToken(uid: string) {
+  const old = await getHealthToken(uid);
+  if (old) await db().del(`healthtoken:${old}`);
+  const token = crypto.randomUUID().replace(/-/g, "");
+  await db().set(`healthtoken:${token}`, uid);
+  await db().set(`healthtoken-of:${uid}`, token);
+  return token;
+}
+export const userForHealthToken = (token: string) => db().get<string>(`healthtoken:${token}`);
+
+// ---- Weight log (from check-ins or Apple Health)
+export const getWeights = async (uid: string) => (await db().get<{ date: string; lb: number }[]>(`weights:${uid}`)) ?? [];
+export async function addWeight(uid: string, date: string, lb: number) {
+  const list = (await getWeights(uid)).filter((x) => x.date !== date);
+  list.push({ date, lb });
+  list.sort((a, b) => a.date.localeCompare(b.date));
+  await db().set(`weights:${uid}`, list.slice(-730));
 }

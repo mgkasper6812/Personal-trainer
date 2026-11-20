@@ -1,10 +1,10 @@
-import Onboarding from "@/components/Onboarding";
+import Setup from "@/components/Setup";
+import { getProfile } from "@/lib/data";
 import { pageUser } from "@/lib/page";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ user?: string }> }) {
+export default async function Page() {
   const me = await pageUser();
-  const { user } = await searchParams;
-  return <Onboarding viewUser={user && user !== me.id ? user : null} />;
+  return <Setup role={me.role} initial={await getProfile(me.id)} />;
 }

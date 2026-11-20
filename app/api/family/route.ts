@@ -1,6 +1,7 @@
 import { listUsers, publicUser, requireUser } from "@/lib/auth";
 import { usageThisMonth } from "@/lib/coach";
-import { getAlerts, getPlan, getProgram, markAlertsSeen } from "@/lib/data";
+import { getAlerts, getCheckIn, getProfile, getProgram, getYesterdayCheckIn, listWorkouts, markAlertsSeen } from "@/lib/data";
+import { evaluate } from "@/lib/rules";
 import { isDate } from "@/lib/dates";
 import { bad, handle, ok } from "@/lib/http";
 
@@ -12,13 +13,21 @@ export const GET = handle(async (req) => {
   const users = await listUsers();
   const members = await Promise.all(
     users.map(async (u) => {
-      const [rec, plan] = await Promise.all([getProgram(u.id), isDate(date) ? getPlan(u.id, date) : null]);
-      const total = plan ? plan.plan.sections.reduce((a, s) => a + s.items.length, 0) : 0;
+      const [rec, profile, workouts, checkIn, yesterday] = await Promise.all([
+        getProgram(u.id), getProfile(u.id), listWorkouts(u.id),
+        isDate(date) ? getCheckIn(u.id, date) : null, isDate(date) ? getYesterdayCheckIn(u.id, date) : null,
+      ]);
+      const status = profile && checkIn ? evaluate(profile, u.name, checkIn, yesterday, null).status : null;
+      const since = isDate(date) ? new Date(Date.parse(`${date}T12:00:00Z`) - 6 * 86400000).toISOString().slice(0, 10) : "";
       return {
         ...publicUser(u),
+        hasProfile: !!profile,
         hasProgram: !!rec,
         programTitle: rec?.program.title ?? null,
-        today: plan ? { done: plan.done.length, total, readiness: plan.plan.readiness, headline: plan.plan.headline } : null,
+        status,
+        checkedIn: !!checkIn,
+        workoutsThisWeek: workouts.filter((w) => w.date >= since).length,
+        recent: workouts.slice(0, 3),
       };
     }),
   );

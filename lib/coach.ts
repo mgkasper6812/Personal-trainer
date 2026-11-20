@@ -2,10 +2,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { db } from "./db";
-import { DailyPlan, OnboardingTurn, Profile, Program } from "./schemas";
-import { PROFILE_EXTRACT_SYSTEM, coachSystem, onboardingSystem, programInstructions } from "./prompts";
+import { EXERCISE_BY_ID } from "./exercises";
+import { Program } from "./schemas";
+import { coachSystem, programRequest } from "./prompts";
 import * as mock from "./mock";
-import type { CheckIn, Role } from "./types";
+import type { Profile, Role } from "./types";
 
 export const MODEL = process.env.COACH_MODEL ?? "claude-opus-5-5";
 
@@ -89,98 +90,31 @@ async function ask<S extends z.ZodType>(
   return { data: res.parsed_output as z.infer<S>, content };
 }
 
-// ---------------- Onboarding ----------------
-
-export type OnboardingState = { messages: Msg[]; display: { role: "coach" | "me"; text: string }[]; complete: boolean };
-
-export async function onboardingTurn(role: Role, name: string, state: OnboardingState, userText: string | null) {
-  const messages: Msg[] = [...state.messages];
-  if (userText === null) {
-    messages.push({ role: "user", content: `Hi, I'm ${name}. Let's get set up.` });
-  } else {
-    messages.push({ role: "user", content: userText });
-  }
-  const { data, content } = mockMode()
-    ? { data: mock.onboarding(role, state.display.length), content: [] as Anthropic.Beta.BetaContentBlockParam[] }
-    : await ask(OnboardingTurn, { system: onboardingSystem(role), messages, effort: "low", maxTokens: 4000 });
-  messages.push({ role: "assistant", content: content.length ? content : [{ type: "text", text: JSON.stringify(data) }] });
-  // A message that still asks a question can't end setup.
-  const complete = data.complete && !data.message.includes("?");
-  const display = [...state.display];
-  if (userText !== null) display.push({ role: "me", text: userText });
-  display.push({ role: "coach", text: data.message });
-  return { messages, display, complete } satisfies OnboardingState;
-}
-
-export async function extractProfile(role: Role, display: OnboardingState["display"]): Promise<Profile> {
-  if (mockMode()) return mock.profile(role);
-  const transcript = display.map((m) => `${m.role === "coach" ? "Coach" : "Them"}: ${m.text}`).join("\n");
-  const { data } = await ask(Profile, {
-    system: PROFILE_EXTRACT_SYSTEM,
-    messages: [{ role: "user", content: `Role: ${role}\n\n${transcript}` }],
-    effort: "low",
-    maxTokens: 8000,
-  });
-  return data;
-}
-
 // ---------------- Program ----------------
 
-export async function generateProgram(role: Role, profile: Profile, startDate: string): Promise<Program> {
-  if (mockMode()) return mock.program(role);
-  const { data } = await ask(Program, {
-    system: coachSystem(role),
-    messages: [
-      {
-        role: "user",
-        content: `${programInstructions(role)}\n\nBlock 1 starts ${startDate} (a Monday).\n\nProfile:\n${JSON.stringify(profile, null, 2)}`,
-      },
-    ],
-    effort: "high",
-    maxTokens: 32000,
-  });
-  return data;
+/** Ask the coach for a program, then keep only valid exercises and a full 7-day schedule. */
+export async function generateProgram(role: Role, name: string, profile: Profile, startDate: string): Promise<Program> {
+  const raw = mockMode()
+    ? mock.program(role)
+    : (
+        await ask(Program, {
+          system: coachSystem(role),
+          messages: [{ role: "user", content: programRequest(role, name, profile, startDate) }],
+          effort: "high",
+          maxTokens: 32000,
+        })
+      ).data;
+  return cleanProgram(raw);
 }
 
-// ---------------- Daily plan ----------------
-
-export async function generateDailyPlan(input: {
-  role: Role;
-  date: string;
-  weekday: string;
-  blockWeek: number;
-  profile: Profile;
-  program: Program;
-  checkIn: CheckIn | null;
-  recent: { date: string; checkIn: CheckIn | null; completed: string }[];
-}): Promise<DailyPlan> {
-  if (mockMode()) return mock.dailyPlan(input.role, input.checkIn);
-  const dow = new Date(`${input.date}T12:00:00`).getDay();
-  const template = input.program.weeklyTemplate.find((d) => d.dayOfWeek === dow) ?? null;
-  const week = input.program.weeks.find((w) => w.week === input.blockWeek) ?? null;
-  const { data } = await ask(DailyPlan, {
-    system: coachSystem(input.role),
-    messages: [
-      {
-        role: "user",
-        content: [
-          `Write today's plan for ${input.weekday} ${input.date}. Start from the program's template for today and this week's progression,`,
-          `then adjust for today's check-in and the last week. Keep it doable in the time available. Every item must be a concrete`,
-          `action they can check off. ${input.role === "athlete" ? "meals must be null; give a fueling tip." : "Include the meal plan; fueling must be null."}`,
-          `If the check-in reports pain, follow the pain rule and say so plainly in the coach note.`,
-          ``,
-          `Block week: ${input.blockWeek} of ${input.program.blockWeeks}${week ? ` — ${week.theme}: ${week.progression}${week.deload ? " (deload)" : ""}` : " (block finished — keep training sensibly and remind them a new block is due)"}`,
-          `Today's template: ${template ? JSON.stringify(template) : "none — treat as rest/recovery"}`,
-          `Today's check-in: ${input.checkIn ? JSON.stringify(input.checkIn) : "not done yet"}`,
-          `Last 7 days: ${JSON.stringify(input.recent)}`,
-          `Standing rules: ${JSON.stringify(input.program.rules)}`,
-          input.program.nutrition ? `Nutrition targets: ${JSON.stringify(input.program.nutrition)}` : "",
-          `Profile: ${JSON.stringify(input.profile)}`,
-        ].join("\n"),
-      },
-    ],
-    effort: "medium",
-    maxTokens: 16000,
+export function cleanProgram(p: Program): Program {
+  const routines = p.routines
+    .map((r) => ({ ...r, exercises: r.exercises.filter((e) => EXERCISE_BY_ID.has(e.exerciseId)) }))
+    .filter((r) => r.exercises.length);
+  const keys = new Set(routines.map((r) => r.key));
+  const schedule = Array.from({ length: 7 }, (_, d) => {
+    const s = p.schedule.find((x) => x.dayOfWeek === d);
+    return { dayOfWeek: d, routineKey: s?.routineKey && keys.has(s.routineKey) ? s.routineKey : null, note: s?.note ?? null };
   });
-  return data;
+  return { ...p, routines, schedule };
 }
