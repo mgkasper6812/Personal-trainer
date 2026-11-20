@@ -75,7 +75,11 @@ export function program(role: Role): Program {
       { dayOfWeek: 6, routineKey: "walk", note: "Longer walk" },
     ],
     dailyHabits: ["10–15 min walk after dinner", "Protein at every meal"],
-    nutrition: { calories: 2200, proteinG: 180, carbApproach: "Fiber-rich carbs; protein and veg first.", eveningPlan: "Kitchen closes 8:30. Planned snack: Greek yogurt." },
+    nutrition: { calories: 2200, proteinG: 180, carbApproach: "Fiber-rich carbs; protein and veg first.", eveningPlan: {
+      beforeTv: ["Walk 10–15 minutes after dinner", "Sparkling water in hand when you sit down"],
+      snackBudget: "200–250 kcal, before 8:30", snackOptions: ["Greek yogurt with berries", "Cheese stick + apple", "3 cups air-popped popcorn"],
+      ifThen: [{ craving: "Chips", instead: "3 cups popcorn in a bowl — never from the bag" }, { craving: "Sweets", instead: "Greek yogurt with fruit" }],
+      afterCutoff: "Sparkling water or herbal tea, then brush your teeth", note: "Log it either way. No guilt, just data." } },
     fueling: null,
     rules: ["Weigh in each morning.", "Walk after dinner."],
   };

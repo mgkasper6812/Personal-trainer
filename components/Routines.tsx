@@ -5,6 +5,7 @@ import { api, localDate } from "@/lib/client";
 import type { ProgramRecord } from "@/lib/data";
 import { getExercise } from "@/lib/exercises";
 import { loadActive, startWorkout } from "@/lib/workout-client";
+import TonightCard from "./TonightCard";
 
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -84,7 +85,7 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
             {p.nutrition && (<>
               <div className="stats"><div className="stat"><b>{p.nutrition.calories.toLocaleString()}</b>calories</div><div className="stat"><b>{p.nutrition.proteinG}g</b>protein</div></div>
               <p className="small">{p.nutrition.carbApproach}</p>
-              <p className="warn small"><b>Evenings:</b> {p.nutrition.eveningPlan}</p>
+              <TonightCard tvTime={null} kitchenCloses={null} swaps={[]} plan={p.nutrition.eveningPlan} />
             </>)}
             {p.fueling && <p className="small">{p.fueling}</p>}
           </div>

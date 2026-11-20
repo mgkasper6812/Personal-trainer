@@ -37,7 +37,19 @@ export const Program = z.object({
     .describe("Exactly 7 entries; routineKey null on rest days"),
   dailyHabits: z.array(z.string()).describe("Short daily habits, e.g. post-dinner walk"),
   nutrition: z
-    .object({ calories: z.number(), proteinG: z.number(), carbApproach: z.string(), eveningPlan: z.string() })
+    .object({
+      calories: z.number(),
+      proteinG: z.number(),
+      carbApproach: z.string(),
+      eveningPlan: z.object({
+        beforeTv: z.array(z.string()).describe("Short actions before/at TV time, each under 12 words"),
+        snackBudget: z.string().nullable().describe("e.g. '200–250 kcal, before 8:30'"),
+        snackOptions: z.array(z.string()).describe("3–5 specific snack options, each under 10 words"),
+        ifThen: z.array(z.object({ craving: z.string().describe("e.g. 'Chips'"), instead: z.string().describe("Short replacement, under 14 words") })),
+        afterCutoff: z.string().nullable().describe("What to do if hungry after the kitchen closes"),
+        note: z.string().nullable(),
+      }),
+    })
     .nullable()
     .describe("Adults only; null for athletes"),
   fueling: z.string().nullable().describe("Athletes only: performance fueling guidance; null for adults"),

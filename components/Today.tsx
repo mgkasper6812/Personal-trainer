@@ -7,6 +7,7 @@ import { ADULT_SYMPTOMS, ATHLETE_RED_FLAGS, type Readiness } from "@/lib/rules";
 import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { loadActive, startWorkout } from "@/lib/workout-client";
+import TonightCard from "./TonightCard";
 import { Chips, Field, Scale, Segmented, Stepper } from "./ui";
 
 type TodayRes = {
@@ -15,7 +16,7 @@ type TodayRes = {
   program: { title: string; week: number; blockWeeks: number; weekInfo: { theme: string; deload: boolean } | null } | null;
   slotNote: string | null; startDate: string | null; routine: Routine | null; baseRoutineKey: string | null; readiness: Readiness | null;
   checkIn: CheckIn | null; evening: EveningLog | null;
-  tonight: { tvTime: string; kitchenCloses: string | null; swaps: string[]; plan: string | null } | null;
+  tonight: { tvTime: string; kitchenCloses: string | null; swaps: string[]; plan: unknown } | null;
   nutrition: { calories: number; proteinG: number; carbApproach: string } | null; fueling: string | null; habits: string[];
   weekStrip: { date: string; dow: number; routine: string | null; done: boolean }[];
   workoutsToday: WorkoutSummary[];
@@ -23,11 +24,6 @@ type TodayRes = {
 
 const REGIONS: Region[] = ["shoulder", "elbow", "wrist", "back", "hip", "knee", "ankle", "neck"];
 const D = ["S", "M", "T", "W", "T", "F", "S"];
-const t12 = (t: string | null) => {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}${h < 12 ? "am" : "pm"}`;
-};
 
 export default function Today({ viewUser }: { viewUser: string | null }) {
   const [date, setDate] = useState(localDate());
@@ -89,18 +85,8 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
         <PlanCard d={d} date={date} self={self} />
 
         {d.tonight && (
-          <div className="card tonight">
-            <div className="row between"><h2 style={{ margin: 0 }}>🌙 Tonight</h2><span className="small muted">TV ~{t12(d.tonight.tvTime)}</span></div>
-            {d.tonight.kitchenCloses && <p><b>Kitchen closes {t12(d.tonight.kitchenCloses)}.</b></p>}
-            {d.tonight.swaps.length > 0 && <p>If you want a snack: <b>{d.tonight.swaps.join(" or ")}</b>.</p>}
-            {d.tonight.plan && <p className="small muted">{d.tonight.plan}</p>}
-            <p className="small">After dinner: 10–15 min walk — it blunts the blood-sugar spike.</p>
-            {self && (<>
-              <div className="field-label" style={{ marginTop: 10 }}>How did the evening go?</div>
-              <Segmented options={["plan", "bit", "off"] as const} value={d.evening} onChange={logEvening}
-                labels={{ plan: "As planned", bit: "Snacked a bit", off: "Off plan" }} />
-            </>)}
-          </div>
+          <TonightCard tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
+            plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
         )}
 
         {(d.habits.length > 0 || d.nutrition || d.fueling) && (
