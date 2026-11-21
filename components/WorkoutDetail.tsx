@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { getExercise } from "@/lib/exercises";
 import type { Workout } from "@/lib/types";
 import { fmtClock, formatSet } from "@/lib/workout-client";
+import { IconTrophy, IconWatch } from "./icons";
 
 export const SHORTCUT_NAME = "Trainer Watch Sync";
 
@@ -29,7 +30,7 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
 
   return (
     <main>
-      {justFinished && <div className="card done-banner"><h2>Workout complete 💪</h2><p className="small">{w.stats.prs.length ? `${w.stats.prs.length} new record${w.stats.prs.length > 1 ? "s" : ""}!` : "Logged. Consistency wins."}</p></div>}
+      {justFinished && <div className="card done-banner"><h2>Workout complete</h2><p className="small">{w.stats.prs.length ? `${w.stats.prs.length} new record${w.stats.prs.length > 1 ? "s" : ""}!` : "Logged. Consistency wins."}</p></div>}
       <h1 style={{ marginBottom: 2 }}>{w.name}</h1>
       <p className="small muted" style={{ marginTop: 0 }}>{new Date(w.startedAt).toLocaleString(undefined, { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
       <div className="stats">
@@ -39,7 +40,7 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
-        <h2>⌚ Apple Watch</h2>
+        <h2 className="row" style={{ gap: 8 }}><IconWatch size={20} />Apple Watch</h2>
         {w.watch ? (
           <div className="stats">
             {w.watch.avgHR && <div className="stat"><b>{w.watch.avgHR}</b>avg bpm</div>}
@@ -55,7 +56,7 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
 
       {w.stats.prs.length > 0 && (
         <div className="card">
-          <h2>🏆 New records</h2>
+          <h2 className="row" style={{ gap: 8 }}><IconTrophy size={20} />New records</h2>
           {w.stats.prs.map((p, i) => <p key={i} className="small"><b>{getExercise(p.exerciseId)?.name}</b> — {p.label}: {p.value} {p.unit}</p>)}
         </div>
       )}

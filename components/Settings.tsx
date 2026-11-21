@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { IconChart, IconChevron, IconUser, IconUsers, IconWatch } from "./icons";
 import { SHORTCUT_NAME } from "./WorkoutDetail";
 
 export default function Settings({ name, role }: { name: string; role: "parent" | "athlete" }) {
@@ -17,15 +18,19 @@ export default function Settings({ name, role }: { name: string; role: "parent" 
 
   return (
     <main>
-      <h1>Settings</h1>
-      <div className="card">
-        <h2>{name}</h2>
-        <p className="small"><Link href="/onboarding">Edit my setup answers</Link> · <Link href="/routines">Rebuild my program</Link></p>
-        {role === "parent" && <p className="small"><Link href="/family">Family &amp; alerts</Link></p>}
+      <div className="row" style={{ gap: 14, marginBottom: 18 }}>
+        <span className="avatar big-avatar">{name.slice(0, 1).toUpperCase()}</span>
+        <div><h1 style={{ margin: 0 }}>{name}</h1><span className="small muted">{role === "parent" ? "Parent" : "Athlete"}</span></div>
+      </div>
+      <div className="card menu">
+        {role === "parent" && <Link href="/family" className="menu-row"><IconUsers /><span>Family &amp; alerts</span><IconChevron size={18} /></Link>}
+        <Link href="/history" className="menu-row"><IconChart /><span>Workout history</span><IconChevron size={18} /></Link>
+        <Link href="/onboarding" className="menu-row"><IconUser /><span>Edit my setup answers</span><IconChevron size={18} /></Link>
+        <a href="#watch" className="menu-row"><IconWatch /><span>Apple Watch sync</span><IconChevron size={18} /></a>
       </div>
 
       <div className="card" id="watch">
-        <h2>⌚ Apple Watch sync</h2>
+        <h2>Apple Watch sync</h2>
         <p className="small">How it works: start a <b>Traditional Strength Training</b> (or Walk) workout on your Watch, log your sets here on your phone, and end both when you&apos;re done. On the workout summary, tap <b>Add Watch data</b> — a Shortcut reads heart rate and calories from Apple Health and sends them here.</p>
         <p className="small"><b>One-time setup (about 2 minutes) in the Shortcuts app:</b></p>
         <ol className="small steps">

@@ -43,7 +43,7 @@ export default function Family() {
             <p className="muted small">{m.id === r.me.id ? "Setup not finished." : `Waiting for ${m.name} to sign in and finish setup (@${m.username}).`}</p>
           ) : (<>
             <p className="small muted">{m.programTitle} · {m.workoutsThisWeek} workout{m.workoutsThisWeek === 1 ? "" : "s"} in the last 7 days</p>
-            {m.recent.map((w) => <p key={w.id} className="small" style={{ margin: "4px 0" }}>✓ {w.name} <span className="muted">· {w.date}{w.prs ? ` · 🏆 ${w.prs}` : ""}</span></p>)}
+            {m.recent.map((w) => <p key={w.id} className="small" style={{ margin: "4px 0" }}>✓ {w.name} <span className="muted">· {w.date}{w.prs ? ` · ${w.prs} PR` : ""}</span></p>)}
           </>)}
           {m.id !== r.me.id && m.hasProgram && (
             <div className="row" style={{ marginTop: 8, gap: 16 }}>

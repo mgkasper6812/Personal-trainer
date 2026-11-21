@@ -6,12 +6,16 @@ import { getExercise, type Region } from "@/lib/exercises";
 import { ADULT_SYMPTOMS, ATHLETE_RED_FLAGS, type Readiness } from "@/lib/rules";
 import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
-import { loadActive, startWorkout } from "@/lib/workout-client";
+import { startWorkout } from "@/lib/workout-client";
+import { IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
 import TonightCard from "./TonightCard";
 import { Chips, Field, Scale, Segmented, Stepper } from "./ui";
 
 type TodayRes = {
   user: { id: string; name: string; role: "parent" | "athlete"; self: boolean };
+  me: { id: string; name: string; role: "parent" | "athlete" };
+  family: { id: string; name: string; alerts: number }[];
+  weekStats: { done: number; planned: number; activeMin: number; eveningsOnPlan: number; eveningsLogged: number };
   date: string; weekday: string; hasProfile: boolean; hasProgram: boolean; profileKind: "adult" | "athlete" | null;
   program: { title: string; week: number; blockWeeks: number; weekInfo: { theme: string; deload: boolean } | null } | null;
   slotNote: string | null; startDate: string | null; routine: Routine | null; baseRoutineKey: string | null; readiness: Readiness | null;
@@ -24,80 +28,126 @@ type TodayRes = {
 
 const REGIONS: Region[] = ["shoulder", "elbow", "wrist", "back", "hip", "knee", "ankle", "neck"];
 const D = ["S", "M", "T", "W", "T", "F", "S"];
+const STATUS = { green: "Ready", yellow: "Adjusted", red: "Recovery" } as const;
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening"; };
+
+function Ring({ r, value, max, color }: { r: number; value: number; max: number; color: string }) {
+  const c = 2 * Math.PI * r;
+  const f = max > 0 ? Math.min(1, value / max) : 0;
+  return (<>
+    <circle cx="44" cy="44" r={r} fill="none" stroke="var(--track)" strokeWidth="8" />
+    <circle cx="44" cy="44" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c * f} ${c}`} transform="rotate(-90 44 44)" />
+  </>);
+}
 
 export default function Today({ viewUser }: { viewUser: string | null }) {
   const [date, setDate] = useState(localDate());
   const [d, setD] = useState<TodayRes | null>(null);
   const [err, setErr] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [active, setActive] = useState<string | null>(null);
+  const [sheet, setSheet] = useState(false);
 
   const load = useCallback(async () => {
     setErr("");
     try { setD(await api<TodayRes>(`/api/today?date=${date}${viewUser ? `&user=${viewUser}` : ""}`)); }
     catch (e) { setErr((e as Error).message); }
   }, [date, viewUser]);
-  useEffect(() => { setD(null); load(); setActive(loadActive()?.name ?? null); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const isToday = date === localDate();
   const self = d?.user.self ?? !viewUser;
   const r = d?.readiness;
+  const adult = d?.profileKind === "adult";
 
   async function logEvening(v: EveningLog) {
     setD((x) => (x ? { ...x, evening: v } : x));
-    try { await api("/api/evening", { body: { date, value: v } }); } catch (e) { setErr((e as Error).message); }
+    try { await api("/api/evening", { body: { date, value: v } }); load(); } catch (e) { setErr((e as Error).message); }
   }
 
+  const dateLabel = new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   return (
     <main>
-      <div className="row between">
-        <h1 style={{ margin: "4px 0" }}>{viewUser && d ? `${d.user.name} · ` : ""}{isToday ? "Today" : d?.weekday ?? "…"}</h1>
-        {!isToday && <button className="link" onClick={() => setDate(localDate())}>Back to today</button>}
-      </div>
-      {d && (
-        <div className="week-strip">
-          {d.weekStrip.map((x) => (
-            <button key={x.date} className={`${x.date === date ? "sel" : ""} ${x.done ? "done" : ""} ${x.routine ? "train" : ""}`} onClick={() => setDate(x.date)}>
-              <span>{D[x.dow]}</span><b>{Number(x.date.slice(8))}</b><i />
-            </button>
-          ))}
+      <header className="home-head">
+        <div>
+          <div className="eyebrow">{dateLabel}{!isToday && <> · <button className="link" onClick={() => setDate(localDate())}>Back to today</button></>}</div>
+          <h1 style={{ margin: "2px 0 0" }}>{viewUser && d ? `${d.user.name}'s day` : `${greeting()}${d ? `, ${d.me.name}` : ""}`}</h1>
         </div>
-      )}
-      {viewUser && d && <p className="warn small">Viewing {d.user.name}&apos;s day (read-only).</p>}
+        {d && viewUser && <Link href="/today" className="switch-chip"><span className="avatar" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>{d.me.name[0]}</span>Me</Link>}
+        {d && !viewUser && d.family.slice(0, 1).map((f) => (
+          <Link key={f.id} href={`/today?user=${f.id}`} className="switch-chip" aria-label={`Switch to ${f.name}${f.alerts ? `, ${f.alerts} alert` : ""}`}>
+            <span className="avatar">{f.name[0]}</span>{f.name}{f.alerts > 0 && <span className="alert-dot" />}
+          </Link>
+        ))}
+      </header>
+
       {err && <p className="error">{err}</p>}
       {!d && !err && <p className="muted"><span className="spinner" />Loading…</p>}
-
       {d && !d.hasProgram && (
         <div className="card"><h2>{self ? "Let's set you up" : `${d.user.name} hasn't finished setup`}</h2>{self && <Link href="/onboarding">Start setup →</Link>}</div>
       )}
 
       {d?.hasProgram && (<>
-        {self && active && <Link href="/workout" className="resume">▶ Resume “{active}”</Link>}
+        <section className="card week-card">
+          <div className="row" style={{ gap: 14, flexWrap: "nowrap" }}>
+            <svg width="88" height="88" viewBox="0 0 88 88" role="img" aria-label={`${d.weekStats.done} of ${d.weekStats.planned} workouts, ${d.weekStats.activeMin} of 150 active minutes`}>
+              <Ring r={38} value={d.weekStats.done} max={d.weekStats.planned || 1} color="var(--accent)" />
+              <Ring r={26} value={d.weekStats.activeMin} max={150} color="var(--accent2)" />
+            </svg>
+            <div style={{ flexGrow: 1, display: "grid", gap: 6 }}>
+              <span className="eyebrow">This week</span>
+              <div className="legend"><i style={{ background: "var(--accent)" }} /><b className="display">{d.weekStats.done}/{d.weekStats.planned}</b><span>workouts</span></div>
+              <div className="legend"><i style={{ background: "var(--accent2)" }} /><b className="display">{d.weekStats.activeMin}/150</b><span>active min</span></div>
+            </div>
+            {adult && (
+              <div className="side-stat"><b className="display">{d.weekStats.eveningsOnPlan}/7</b><span>evenings on plan</span></div>
+            )}
+          </div>
+          <div className="day-dots">
+            {d.weekStrip.map((x) => (
+              <button key={x.date} onClick={() => setDate(x.date)} className={`${x.date === date ? "sel" : ""} ${x.done ? "done" : x.routine ? "train" : ""}`}
+                aria-label={`${x.date}${x.routine ? `: ${x.routine}` : ""}${x.done ? ", done" : ""}`}>
+                <span>{D[x.dow]}</span><i />
+              </button>
+            ))}
+          </div>
+        </section>
+
         {r?.urgent && <div className="card urgent"><b>Stop.</b> {r.urgent}</div>}
 
-        {self && (!d.checkIn || editing) ? (
-          <CheckInForm athlete={d.profileKind === "athlete"} date={date} initial={d.checkIn}
-            onSaved={() => { setEditing(false); load(); }} onCancel={d.checkIn ? () => setEditing(false) : undefined} />
-        ) : d.checkIn ? (
-          <CheckInSummary c={d.checkIn} r={r ?? null} athlete={d.profileKind === "athlete"} onEdit={self ? () => setEditing(true) : undefined} />
-        ) : !self ? <p className="muted small">No check-in yet.</p> : null}
+        {self ? (
+          <button className="checkin-row" onClick={() => setSheet(true)}>
+            <span className={`ci-icon ${d.checkIn ? "done" : ""}`}><IconCheck size={18} /></span>
+            <span style={{ flexGrow: 1 }}>
+              {d.checkIn ? <>Checked in <span className={`pill ${r?.status ?? "green"}`} style={{ marginLeft: 6 }}>{STATUS[r?.status ?? "green"]}</span></> : <>Check in <span className="muted" style={{ fontWeight: 500 }}>· 30 sec</span></>}
+            </span>
+            <span className="muted small">{d.checkIn ? "Edit" : ""}</span><IconChevron size={18} />
+          </button>
+        ) : d.checkIn ? <CheckInSummary c={d.checkIn} r={r ?? null} athlete={d.profileKind === "athlete"} /> : <p className="muted small">No check-in yet.</p>}
 
         <PlanCard d={d} date={date} self={self} />
 
         {d.tonight && (
-          <TonightCard tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
+          <TonightCard collapsible tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
             plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
         )}
 
         {(d.habits.length > 0 || d.nutrition || d.fueling) && (
-          <div className="card">
-            <h2>Daily habits</h2>
-            <ul className="small">{d.habits.map((h) => <li key={h}>{h}</li>)}</ul>
-            {d.nutrition && <p className="small"><b>{d.nutrition.calories.toLocaleString()} cal · {d.nutrition.proteinG}g protein.</b> {d.nutrition.carbApproach}</p>}
-            {d.fueling && <p className="small"><b>Fuel:</b> {d.fueling}</p>}
+          <section className="card">
+            <span className="eyebrow">Daily habits</span>
+            <ul className="checks" style={{ marginTop: 8 }}>{d.habits.map((h) => <li key={h}>{h}</li>)}</ul>
+            {d.nutrition && <p className="small" style={{ marginBottom: 0 }}><b>{d.nutrition.calories.toLocaleString()} cal · {d.nutrition.proteinG}g protein.</b> <span className="muted">{d.nutrition.carbApproach}</span></p>}
+            {d.fueling && <p className="small" style={{ marginBottom: 0 }}><b>Fuel:</b> <span className="muted">{d.fueling}</span></p>}
+          </section>
+        )}
+        {adult && <p className="small muted" style={{ textAlign: "center" }}>General guidance, not medical advice — your doctor leads on A1C and medications.</p>}
+
+        {sheet && (
+          <div className="sheet-backdrop" onClick={() => setSheet(false)}>
+            <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Check in">
+              <CheckInForm athlete={d.profileKind === "athlete"} date={date} initial={d.checkIn}
+                onSaved={() => { setSheet(false); load(); }} onCancel={() => setSheet(false)} />
+            </div>
           </div>
         )}
-        {d.profileKind === "adult" && <p className="small muted" style={{ textAlign: "center" }}>General guidance, not medical advice — your doctor leads on A1C and medications.</p>}
       </>)}
     </main>
   );
@@ -107,56 +157,54 @@ function PlanCard({ d, date, self }: { d: TodayRes; date: string; self: boolean 
   const r = d.readiness;
   const done = d.workoutsToday;
   if (done.length) return (
-    <div className="card">
-      <span className="pill green">Done</span>
+    <section className="hero">
+      <div className="eyebrow hero-eyebrow">Today · done</div>
       {done.map((w) => (
         <Link key={w.id} href={`/history/${w.id}${self ? "" : `?user=${d.user.id}`}`} className="done-row">
-          <b>{w.name}</b><span className="small muted">{w.sets} sets{w.volume ? ` · ${w.volume.toLocaleString()} lb` : ""}{w.prs ? ` · 🏆 ${w.prs} PR` : ""}{w.watch ? " · ⌚" : ""}</span>
+          <b className="display" style={{ fontSize: 24 }}>{w.name} ✓</b>
+          <span className="small muted">{w.sets} set{w.sets === 1 ? "" : "s"}{w.volume ? ` · ${w.volume.toLocaleString()} lb` : ""}{w.prs ? ` · ${w.prs} new record${w.prs > 1 ? "s" : ""}` : ""}{w.watch ? " · Watch data" : ""}</span>
         </Link>
       ))}
-    </div>
+    </section>
   );
   if (d.startDate && date < d.startDate) {
     const days = Math.round((Date.parse(`${d.startDate}T12:00:00`) - Date.parse(`${date}T12:00:00`)) / 86400000);
     return (
-      <div className="card">
-        <h2>{d.slotNote}</h2>
-        <p className="small muted">{days} day{days === 1 ? "" : "s"} to go. {d.profileKind === "adult" ? "Start the habits now: post-dinner walk and your evening swap." : "Rest up, and get your gear ready for Test Day."}</p>
+      <section className="hero">
+        <div className="eyebrow hero-eyebrow">{days} day{days === 1 ? "" : "s"} to go</div>
+        <h2 className="hero-title">{d.slotNote}</h2>
+        <p className="small muted">{d.profileKind === "adult" ? "Start the habits now: post-dinner walk and your evening swap." : "Rest up, and get your gear ready for Test Day."}</p>
         {self && <Link href="/routines" className="small">Change start date</Link>}
-      </div>
+      </section>
     );
   }
   if (!d.routine) return (
-    <div className="card">
-      <h2>{d.slotNote ?? "Rest day"}</h2>
+    <section className="hero">
+      <div className="eyebrow hero-eyebrow">Today</div>
+      <h2 className="hero-title">{d.slotNote ?? "Rest day"}</h2>
       <p className="small muted">Recovery is part of the plan. {d.profileKind === "adult" ? "Still take your post-dinner walk." : "Sleep, eat well, light mobility if you like."}</p>
-      {self && <button className="link" onClick={() => startWorkout(null, date)}>Log something anyway →</button>}
-    </div>
+      {self && <button className="big wide" onClick={() => startWorkout(null, date)}>Log something anyway</button>}
+    </section>
   );
   const rt = d.routine;
   return (
-    <div className="card">
-      <div className="row between">
-        <span className={`pill ${r?.status ?? "green"}`}>{r?.status === "red" ? "Recovery" : r?.status === "yellow" ? "Adjusted" : "Go"}</span>
-        <span className="small muted">{d.program?.week ? `Week ${Math.min(d.program.week, d.program.blockWeeks)} of ${d.program.blockWeeks}` : ""}{d.program?.weekInfo?.deload ? " · lighter week" : ""}</span>
+    <section className="hero">
+      <div className="row between hero-eyebrow">
+        <span className="eyebrow">Today{d.program?.week ? ` · Week ${Math.min(d.program.week, d.program.blockWeeks)}` : ""}{d.program?.weekInfo?.deload ? " · lighter" : ""}</span>
+        <span className="eyebrow">~{rt.estMinutes} min</span>
       </div>
-      <h2 style={{ margin: "10px 0 4px" }}>{rt.name}</h2>
-      <p className="small" style={{ marginTop: 0 }}>{rt.purpose} · ~{rt.estMinutes} min</p>
+      <h2 className="hero-title">{rt.name}</h2>
+      <p className="small muted" style={{ margin: "0 0 12px" }}>{rt.purpose}</p>
       {r && (r.reasons.length > 0 || r.removed.length > 0) && (
-        <p className="small why"><b>Why it changed:</b> {r.reasons.join(", ")}.
+        <p className="small why"><b>{STATUS[r.status]}:</b> {r.reasons.join(", ")}.
           {r.removed.length > 0 && ` Removed: ${r.removed.map((x) => getExercise(x.exerciseId)?.name).join(", ")}.`}
           {r.dropOneSet && " One less set on each exercise."}</p>
       )}
-      <ul className="ex-list">
-        {rt.exercises.map((e, i) => {
-          const ex = getExercise(e.exerciseId);
-          const tgt = e.repsMin ? `${e.sets} × ${e.repsMin}${e.repsMax && e.repsMax !== e.repsMin ? `–${e.repsMax}` : ""}`
-            : e.seconds ? `${e.sets} × ${e.seconds}s` : e.minutes ? `${e.minutes} min` : e.count ? `${e.sets} × ${e.count}` : `${e.sets} sets`;
-          return <li key={i}><span>{e.superset && <b className="ss">{e.superset}</b>}{ex?.name}</span><span className="muted">{tgt}</span></li>;
-        })}
-      </ul>
-      {self && <button className="primary wide" onClick={() => startWorkout(rt, date, !!d.program?.weekInfo?.deload)}>Start workout</button>}
-    </div>
+      <div className="chips" style={{ marginBottom: 14 }}>
+        {rt.exercises.map((e, i) => <span key={i} className="chip static hero-chip">{e.superset && <b style={{ color: "var(--accent)" }}>{e.superset} </b>}{getExercise(e.exerciseId)?.name}</span>)}
+      </div>
+      {self && <button className="primary big wide row" style={{ justifyContent: "center", gap: 8 }} onClick={() => startWorkout(rt, date, !!d.program?.weekInfo?.deload)}><IconPlay size={18} />Start workout</button>}
+    </section>
   );
 }
 
@@ -172,8 +220,8 @@ function CheckInForm({ athlete, date, initial, onSaved, onCancel }: { athlete: b
     catch (e) { setErr((e as Error).message); setBusy(false); }
   }
   return (
-    <div className="card">
-      <div className="row between"><h2 style={{ margin: 0 }}>30-second check-in</h2>{onCancel && <button className="link" onClick={onCancel}>Cancel</button>}</div>
+    <div>
+      <div className="row between"><h2 style={{ margin: 0 }}>Check in</h2>{onCancel && <button className="link" aria-label="Close" onClick={onCancel}><IconClose /></button>}</div>
       <div style={{ height: 12 }} />
       <Field label="Sleep last night"><Stepper value={c.sleepHours ?? null} onChange={(v) => set({ sleepHours: v ?? undefined })} step={0.5} decimals={1} min={0} max={14} unit="hrs" /></Field>
       <Field label="Energy"><Scale value={c.energy} onChange={(n) => set({ energy: n })} low="Wiped" high="Great" /></Field>

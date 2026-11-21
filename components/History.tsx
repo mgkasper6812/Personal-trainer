@@ -34,9 +34,9 @@ export default function History({ viewUser }: { viewUser: string | null }) {
             <Link key={w.id} href={`/history/${w.id}${q}`} className="card hist-card">
               <div className="row between"><b>{w.name}</b><span className="small muted">{new Date(`${w.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</span></div>
               <div className="row small muted" style={{ gap: 12 }}>
-                <span>⏱ {fmtClock((Date.parse(w.endedAt) - Date.parse(w.startedAt)) / 1000)}</span>
-                <span>{w.sets} sets</span>{w.volume > 0 && <span>{w.volume.toLocaleString()} lb</span>}
-                {w.prs > 0 && <span>🏆 {w.prs}</span>}{w.watch && <span>⌚</span>}
+                <span>{fmtClock((Date.parse(w.endedAt) - Date.parse(w.startedAt)) / 1000)}</span>
+                <span>{w.sets} set{w.sets === 1 ? "" : "s"}</span>{w.volume > 0 && <span>{w.volume.toLocaleString()} lb</span>}
+                {w.prs > 0 && <span style={{ color: "var(--accent)" }}>{w.prs} PR</span>}{w.watch && <span>Watch</span>}
               </div>
             </Link>
           ))}

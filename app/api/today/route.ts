@@ -1,5 +1,5 @@
-import { requireUser, resolveTarget } from "@/lib/auth";
-import { getCheckIn, getEvening, getProfile, getProgram, getYesterdayCheckIn, listWorkouts } from "@/lib/data";
+import { listUsers, requireUser, resolveTarget } from "@/lib/auth";
+import { getAlerts, getCheckIn, getEvening, getProfile, getProgram, getYesterdayCheckIn, listWorkouts } from "@/lib/data";
 import { addDays, daysBetween, isDate, mondayOf, weekdayName } from "@/lib/dates";
 import { bad, handle, ok } from "@/lib/http";
 import { adjustRoutine, evaluate } from "@/lib/rules";
@@ -36,7 +36,29 @@ export const GET = handle(async (req) => {
     return { date: d, dow: dw, routine: rec && d >= rec.startDate ? r?.name ?? null : null, done: workouts.some((w) => w.date === d) };
   });
 
+  // This week's numbers for the rings
+  const weekDates = weekStrip.map((x) => x.date);
+  const weekWorkouts = workouts.filter((w) => weekDates.includes(w.date));
+  const evenings = profile?.kind === "adult" ? await Promise.all(weekDates.filter((d) => d <= date).map((d) => getEvening(target.id, d))) : [];
+  const weekStats = {
+    done: new Set(weekWorkouts.map((w) => w.date)).size,
+    planned: weekStrip.filter((x) => x.routine).length,
+    activeMin: Math.round(weekWorkouts.reduce((a, w) => a + Math.max(0, (Date.parse(w.endedAt) - Date.parse(w.startedAt)) / 60000), 0)),
+    eveningsOnPlan: evenings.filter((e) => e === "plan").length,
+    eveningsLogged: evenings.filter(Boolean).length,
+  };
+
+  // For a parent: the other family members (with unseen alerts) for the switcher
+  let family: { id: string; name: string; alerts: number }[] = [];
+  if (me.role === "parent") {
+    const [users, alerts] = await Promise.all([listUsers(), getAlerts()]);
+    family = users.filter((u) => u.id !== me.id).map((u) => ({ id: u.id, name: u.name, alerts: alerts.filter((a) => a.athleteId === u.id && !a.seen).length }));
+  }
+
   return ok({
+    me: { id: me.id, name: me.name, role: me.role },
+    family,
+    weekStats,
     user: { id: target.id, name: target.name, role: target.role, self },
     date,
     weekday: weekdayName(date),

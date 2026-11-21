@@ -154,7 +154,7 @@ export default function Logger() {
         <div>
           <input className="title-input" value={w.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} aria-label="Workout name" />
           <div className="row small muted" style={{ gap: 14 }}>
-            <span>⏱ {fmtClock(elapsed)}</span><span>{doneSets.length} sets</span>{volume > 0 && <span>{volume.toLocaleString()} lb</span>}
+            <span className="display">{fmtClock(elapsed)}</span><span>{doneSets.length} set{doneSets.length === 1 ? "" : "s"}</span>{volume > 0 && <span>{volume.toLocaleString()} lb</span>}
           </div>
         </div>
         <button className="primary" onClick={finish} disabled={saving}>{saving ? "Saving…" : "Finish"}</button>

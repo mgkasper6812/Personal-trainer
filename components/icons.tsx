@@ -1,0 +1,22 @@
+// Stroke icons (24px grid). Decorative unless a label is given.
+type P = { size?: number; label?: string };
+const svg = (path: React.ReactNode, { size = 24, label }: P, fill = false) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"} stroke={fill ? "none" : "currentColor"}
+    strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+    {path}
+  </svg>
+);
+export const IconHome = (p: P) => svg(<><path d="M3 11 12 4l9 7" /><path d="M5 10v10h14V10" /></>, p);
+export const IconTrain = (p: P) => svg(<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12" />, p);
+export const IconPlus = (p: P) => svg(<path d="M12 5v14M5 12h14" />, p);
+export const IconChart = (p: P) => svg(<><path d="M3 20h18" /><path d="m4 15 5-5 4 4 7-7" /></>, p);
+export const IconUser = (p: P) => svg(<><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>, p);
+export const IconCheck = (p: P) => svg(<path d="M20 6 9 17l-5-5" />, p);
+export const IconChevron = (p: P) => svg(<path d="m9 18 6-6-6-6" />, p);
+export const IconPlay = (p: P) => svg(<path d="M7 4v16l13-8z" />, p, true);
+export const IconMoon = (p: P) => svg(<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />, p);
+export const IconWatch = (p: P) => svg(<><rect x="6" y="6" width="12" height="12" rx="3" /><path d="M9 6V3h6v3M9 18v3h6v-3M12 10v2l1.5 1.5" /></>, p);
+export const IconUsers = (p: P) => svg(<><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c1-3.5 3.5-5 6.5-5s5.5 1.5 6.5 5" /><circle cx="17" cy="9" r="2.5" /><path d="M17 14c2.5 0 4 1.5 4.5 4" /></>, p);
+export const IconSearch = (p: P) => svg(<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>, p);
+export const IconClose = (p: P) => svg(<path d="M6 6l12 12M18 6 6 18" />, p);
+export const IconTrophy = (p: P) => svg(<><path d="M8 4h8v5a4 4 0 0 1-8 0Z" /><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6" /></>, p);

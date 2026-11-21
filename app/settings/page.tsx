@@ -1,10 +1,5 @@
-import Settings from "@/components/Settings";
-import TabBar from "@/components/TabBar";
-import { pageUser } from "@/lib/page";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function Page() {
-  const me = await pageUser();
-  return (<><Settings name={me.name} role={me.role} /><TabBar role={me.role} /></>);
+export default function Page() {
+  redirect("/me");
 }
