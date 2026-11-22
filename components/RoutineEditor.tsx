@@ -78,7 +78,7 @@ export default function RoutineEditor({ routineKey }: { routineKey: string }) {
         const reps = ex.kind === "weight_reps" || ex.kind === "reps";
         setRt({ ...rt, exercises: [...rt.exercises, { exerciseId: ex.id, sets: 3, warmupSets: 0, repsMin: reps ? 8 : null, repsMax: reps ? 12 : null,
           seconds: ex.kind === "duration" ? 30 : null, minutes: ex.kind === "cardio" ? 20 : null, count: ex.kind === "swings" || ex.kind === "throws" ? 10 : null,
-          weightLb: null, restSec: 90, superset: null, notes: null }] });
+          weightLb: null, targetRpe: null, tempo: null, restSec: 90, superset: null, notes: null }] });
         setPicker(false);
       }} />}
     </main>

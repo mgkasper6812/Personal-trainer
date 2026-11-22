@@ -5,6 +5,7 @@ import type { ExerciseStats } from "@/lib/data";
 import { getExercise } from "@/lib/exercises";
 import type { ExercisePoint } from "@/lib/stats";
 import { LineChart } from "./ui";
+import { DemoVideo, ExerciseGuideView } from "./ExerciseInfo";
 
 type Metric = { key: keyof ExercisePoint; label: string; unit: string; lower?: boolean };
 const METRICS: Record<string, Metric[]> = {
@@ -34,12 +35,14 @@ export default function ExerciseDetail({ id, viewUser }: { id: string; viewUser:
     <main>
       <h1>{e.name}</h1>
       <p className="small muted" style={{ marginTop: -6 }}>{e.muscles.join(", ")} · {e.equipment.join(", ")}</p>
-      <div className="card"><p className="small" style={{ margin: 0 }}><b>Cue:</b> {e.cue}</p></div>
+      <DemoVideo id={id} />
+      <section className="card"><ExerciseGuideView id={id} /></section>
       {metrics.length > 0 && (
         <div className="card">
           <div className="chips" style={{ marginBottom: 10 }}>
             {metrics.map((x, i) => <button key={x.key} className={`chip ${i === m ? "on" : ""}`} onClick={() => setM(i)}>{x.label}</button>)}
           </div>
+          <span className="eyebrow">Your progress</span>
           {best != null && <p style={{ margin: "0 0 6px" }}><b style={{ fontSize: 24 }}>{best}</b> <span className="muted">{metric?.unit} best</span></p>}
           {st ? <LineChart points={pts} unit={metric?.unit ?? ""} lowerIsBetter={metric?.lower} /> : <p className="muted"><span className="spinner" />Loading…</p>}
         </div>

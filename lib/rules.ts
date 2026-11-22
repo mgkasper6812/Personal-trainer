@@ -111,8 +111,8 @@ export function adjustRoutine(routine: Routine, r: Readiness): Routine {
       purpose: "Recovery day — move easy, feel better tomorrow.",
       estMinutes: 25,
       exercises: [
-        { exerciseId: "easy_bike", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 12, count: null, weightLb: null, restSec: 0, superset: null, notes: "Conversational pace" },
-        { exerciseId: "mobility_flow", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: 600, minutes: null, count: null, weightLb: null, restSec: 0, superset: null, notes: "Skip anything that hurts" },
+        { exerciseId: "easy_bike", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 12, count: null, weightLb: null, targetRpe: null, tempo: null, restSec: 0, superset: null, notes: "Conversational pace" },
+        { exerciseId: "mobility_flow", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: 600, minutes: null, count: null, weightLb: null, targetRpe: null, tempo: null, restSec: 0, superset: null, notes: "Skip anything that hurts" },
       ].filter((e) => !getExercise(e.exerciseId)?.regions.some((x) => r.avoid.includes(x))),
     };
   }

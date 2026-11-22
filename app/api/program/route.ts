@@ -54,7 +54,7 @@ const TEMPLATES: Record<string, Omit<Routine, "key">> = {
     name: "Zone 2 Cardio",
     purpose: "Easy, steady cardio — improves insulin sensitivity and heart health.",
     estMinutes: 40,
-    exercises: [{ exerciseId: "zone2_cardio", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 40, count: null, weightLb: null, restSec: 0, superset: null, notes: "Conversational pace. Watch: stay in Zone 2." }],
+    exercises: [{ exerciseId: "zone2_cardio", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 40, count: null, weightLb: null, targetRpe: null, tempo: null, restSec: 0, superset: null, notes: "Conversational pace. Watch: stay in Zone 2." }],
   },
   blank: { name: "New routine", purpose: "Your own routine.", estMinutes: 30, exercises: [] },
 };

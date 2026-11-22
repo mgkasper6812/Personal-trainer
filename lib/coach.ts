@@ -3,8 +3,8 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { db } from "./db";
 import { EXERCISE_BY_ID } from "./exercises";
-import { Program, ProteinEstimate, RecipeBatch } from "./schemas";
-import { RECIPE_SYSTEM, coachSystem, programRequest, recipeRequest } from "./prompts";
+import { ExerciseGuide, Program, ProteinEstimate, RecipeBatch } from "./schemas";
+import { GUIDE_SYSTEM, RECIPE_SYSTEM, coachSystem, programRequest, recipeRequest } from "./prompts";
 import * as mock from "./mock";
 import type { HealthBio, Profile, Role } from "./types";
 
@@ -156,4 +156,17 @@ export async function estimateProtein(text: string) {
     model: FAST_MODEL,
   });
   return data.items.filter((i) => i.grams >= 0 && i.grams <= 300).slice(0, 15);
+}
+
+// ---------------- Exercise guides (written once, cached) ----------------
+
+export async function writeExerciseGuide(e: { name: string; kind: string; equipment: string[]; cue: string }): Promise<ExerciseGuide> {
+  if (mockMode()) return mock.guide(e.name);
+  const { data } = await ask(ExerciseGuide, {
+    system: GUIDE_SYSTEM,
+    messages: [{ role: "user", content: `Exercise: ${e.name} (${e.kind}; equipment: ${e.equipment.join(", ")}). Our one-line cue: "${e.cue}".` }],
+    effort: "low",
+    maxTokens: 4000,
+  });
+  return data;
 }

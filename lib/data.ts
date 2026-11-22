@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { addDays } from "./dates";
-import type { Program } from "./schemas";
+import type { ExerciseGuide, Program } from "./schemas";
 import type { ExercisePoint } from "./stats";
 import type { Alert, CheckIn, EveningLog, HealthBio, MealPlan, Profile, Recipe, RecipeSummary, Workout, WorkoutSummary } from "./types";
 
@@ -114,3 +114,7 @@ export const getProteinLog = async (uid: string, date: string) => (await db().ge
 export const saveProteinLog = (uid: string, date: string, e: ProteinEntry[]) => db().set(`protein:${uid}:${date}`, e);
 export const getProteinFoods = async (uid: string) => (await db().get<ProteinFood[]>(`protein-foods:${uid}`)) ?? [];
 export const saveProteinFoods = (uid: string, f: ProteinFood[]) => db().set(`protein-foods:${uid}`, f);
+
+// ---- Exercise guides (global cache)
+export const getGuide = (id: string) => db().get<ExerciseGuide>(`guide:${id}`);
+export const saveGuide = (id: string, g: ExerciseGuide) => db().set(`guide:${id}`, g);

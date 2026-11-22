@@ -4,7 +4,7 @@ import type { Role } from "./types";
 
 const ex = (exerciseId: string, o: Partial<RoutineExercise> = {}): RoutineExercise => ({
   exerciseId, sets: 3, warmupSets: 0, repsMin: 8, repsMax: 12, seconds: null, minutes: null, count: null,
-  weightLb: null, restSec: 90, superset: null, notes: null, ...o,
+  weightLb: null, targetRpe: 7, tempo: null, restSec: 90, superset: null, notes: null, ...o,
 });
 const weeks = [1, 2, 3, 4].map((w) => ({ week: w, theme: w === 4 ? "Lighter week + retest" : `Build ${w}`, progression: w === 4 ? "Cut sets by a third." : "Add reps, then load.", deload: w === 4 }));
 
@@ -123,4 +123,16 @@ export function protein(text: string) {
   return text.split(/,| and /i).map((t) => t.trim()).filter(Boolean).map((label) => ({
     label, grams: /egg/i.test(label) ? 12 : /shake|fairlife/i.test(label) ? 30 : /chicken/i.test(label) ? 40 : 5, assumed: !/\d/.test(label),
   }));
+}
+
+export function guide(name: string) {
+  return {
+    summary: `${name} builds strength you can use every day.`,
+    setup: ["Feet about shoulder-width apart.", "Brace your core before you move."],
+    steps: ["Start in a tall position.", "Lower with control.", "Drive back up smoothly."],
+    cues: ["Chest proud", "Knees track over toes", "Control the lowering"],
+    mistakes: ["Rushing the reps — slow down the lowering.", "Losing your brace — reset between reps."],
+    easier: "Use a lighter weight or a shorter range.", harder: "Add a pause at the bottom.",
+    breathing: "Breathe in on the way down, out on the way up.", safety: null,
+  };
 }

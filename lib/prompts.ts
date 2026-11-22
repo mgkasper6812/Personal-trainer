@@ -41,7 +41,10 @@ ${libraryForPrompt(role)}
 
 Target fields by kind: weight_reps → repsMin/repsMax (+ weightLb if you can estimate it); reps → repsMin/repsMax;
 duration → seconds; cardio → minutes; swings/throws → count per set; sprint → sets of 1 rep each (count null); jump → repsMin.
-Rest days get routineKey null. Keep each routine within their minutes per session. Week 4 should be a lighter week.`;
+Rest days get routineKey null. Keep each routine within their minutes per session. Week 4 should be a lighter week.
+Be specific like a personal trainer's written program: for every weight_reps exercise give a conservative starting weightLb
+(dumbbell weights are per hand) based on their experience, sex, age and body weight; give targetRpe for working sets (usually 6–8,
+lower for beginners and teens); give a tempo when control matters; and put one concrete form cue in notes.`;
   const specific =
     role === "athlete"
       ? `Decide the split between hitting, strength and quickness from her priorities and numbers. Schedule around her team practice
@@ -81,3 +84,7 @@ export function recipeRequest(count: number, bio: HealthBio | null, profile: Pro
     existing.length ? `Already in the library (don't repeat): ${existing.join("; ")}.` : "",
   ].filter(Boolean).join("\n");
 }
+
+export const GUIDE_SYSTEM = `You write short, accurate exercise technique guides for a family fitness app (an adult beginner-to-intermediate
+lifter and a high school softball player). Plain words, no hype. Standard, widely taught technique only. Include a safety note
+where there is real injury risk (spine, shoulder, knee, throwing arm).`;

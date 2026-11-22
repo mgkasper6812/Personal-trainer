@@ -11,7 +11,9 @@ const Target = z.object({
   seconds: z.number().nullable().describe("For timed exercises"),
   minutes: z.number().nullable().describe("For cardio"),
   count: z.number().nullable().describe("Swings or throws per set"),
-  weightLb: z.number().nullable().describe("Starting load if you can estimate it, else null"),
+  weightLb: z.number().nullable().describe("Suggested starting load in lb for weighted exercises (required for weight_reps); null for bodyweight/time/cardio"),
+  targetRpe: z.number().nullable().describe("Target effort 1–10 (RPE) for working sets, e.g. 7 = about 3 reps left"),
+  tempo: z.string().nullable().describe("Lifting tempo like '3-1-1' (down-pause-up) when it matters, else null"),
   restSec: z.number(),
   superset: z.string().nullable().describe("Same letter = superset (e.g. 'A'); null if none"),
   notes: z.string().nullable().describe("One short coaching note or cue"),
@@ -94,3 +96,16 @@ export const ProteinEstimate = z.object({
     assumed: z.boolean().describe("True if you had to assume the portion size"),
   })),
 });
+
+export const ExerciseGuide = z.object({
+  summary: z.string().describe("One sentence: what it trains and why it matters"),
+  setup: z.array(z.string()).describe("2–4 setup points"),
+  steps: z.array(z.string()).describe("3–6 numbered steps"),
+  cues: z.array(z.string()).describe("3 short coaching cues"),
+  mistakes: z.array(z.string()).describe("2–4 common mistakes and the fix"),
+  easier: z.string().describe("An easier variation"),
+  harder: z.string().describe("A harder variation"),
+  breathing: z.string(),
+  safety: z.string().nullable().describe("A safety note if relevant, else null"),
+});
+export type ExerciseGuide = z.infer<typeof ExerciseGuide>;

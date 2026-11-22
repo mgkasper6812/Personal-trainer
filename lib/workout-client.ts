@@ -6,7 +6,8 @@ import type { LoggedExercise, LoggedSet } from "./types";
 
 // The in-progress workout lives in localStorage so it survives the app closing, a phone lock or a lost connection.
 
-export type Target = { repsMin: number | null; repsMax: number | null; seconds: number | null; minutes: number | null; count: number | null };
+export type Target = { repsMin: number | null; repsMax: number | null; seconds: number | null; minutes: number | null; count: number | null;
+  weightLb?: number | null; targetRpe?: number | null; tempo?: string | null; notes?: string | null };
 export type ActiveExercise = LoggedExercise & { target?: Target; hint?: string };
 export type ActiveWorkout = {
   id: string;
@@ -72,7 +73,8 @@ export function fromRoutine(routine: Routine, date: string, stats: Record<string
 export function buildExercise(r: RoutineExercise, st: ExerciseStats | undefined, deload = false): ActiveExercise {
   const e = getExercise(r.exerciseId)!;
   const last = st?.last?.sets.filter((s) => s.type !== "warmup") ?? [];
-  const target: Target = { repsMin: r.repsMin, repsMax: r.repsMax, seconds: r.seconds, minutes: r.minutes, count: r.count };
+  const target: Target = { repsMin: r.repsMin, repsMax: r.repsMax, seconds: r.seconds, minutes: r.minutes, count: r.count,
+    weightLb: r.weightLb, targetRpe: r.targetRpe ?? null, tempo: r.tempo ?? null, notes: r.notes };
   let weight = last.length ? Math.max(...last.map((s) => s.weight ?? 0)) || undefined : r.weightLb ?? undefined;
   let hint: string | undefined;
   if (e.kind === "weight_reps" && last.length && r.repsMax && weight) {

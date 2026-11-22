@@ -312,3 +312,22 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   background: var(--bg); border-top: 1px solid var(--line); max-width: 640px; margin: 0 auto; }
 .chat-composer textarea { resize: none; min-height: 46px; max-height: 120px; }
 .chat-composer button { flex: none; }
+/* ---- Exercise demos & guides ---- */
+.demo { margin: 12px 0; }
+.demo-frame { position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #000; }
+.demo-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.demo-poster { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; border-radius: 0; background-size: cover; background-position: center; }
+.demo-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.demo-len { position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.75); color: #fff; font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+.demo figcaption { margin-top: 6px; }
+.guide h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 16px 0 6px; }
+.guide ul, .guide ol { margin: 0; padding-left: 20px; } .guide li { margin-bottom: 6px; }
+.guide-var { margin-top: 14px; }
+.rx { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.rx span { font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--card2); color: var(--text); }
+.rx span.w { background: var(--soft); color: var(--accent); }
+.ex-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; text-align: left; min-height: 0; }
+.ex-row:last-child { border-bottom: 0; }
+.ex-thumb { width: 64px; height: 40px; border-radius: 8px; background: var(--card2) center/cover; flex: none; }
+.ex-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }

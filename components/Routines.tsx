@@ -7,6 +7,9 @@ import { EXERCISES, getExercise } from "@/lib/exercises";
 import { loadActive, startWorkout } from "@/lib/workout-client";
 import { IconChevron, IconSearch } from "./icons";
 import TonightCard from "./TonightCard";
+import { ExerciseSheet } from "./ExerciseInfo";
+import { EXERCISE_VIDEOS } from "@/lib/exercise-videos";
+import { rxParts } from "@/lib/rx";
 
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const SEGS = [["program", "Program"], ["routines", "Routines"], ["exercises", "Exercises"]] as const;
@@ -38,6 +41,7 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
   }, [q, f]);
 
   const [dayEdit, setDayEdit] = useState<number | null>(null);
+  const [info, setInfo] = useState<{ id: string; rx: { label: string; weight?: boolean }[]; notes: string | null } | null>(null);
   async function patch(b: Record<string, unknown>) {
     try {
       const x = await api<{ record: ProgramRecord; created: string | null }>("/api/program", { method: "PATCH", body: b });
@@ -140,7 +144,22 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
         return (
           <section className="card" key={rt.key}>
             <div className="row between"><h2 style={{ margin: 0 }}>{rt.name}</h2><span className="small muted">{days}</span></div>
-            <p className="small muted" style={{ margin: "6px 0 10px" }}>{rt.exercises.map((e) => getExercise(e.exerciseId)?.name).join(", ")}</p>
+            <p className="small muted" style={{ margin: "4px 0 8px" }}>{rt.purpose} · ~{rt.estMinutes} min</p>
+            <div style={{ marginBottom: 10 }}>
+              {rt.exercises.map((e, i) => {
+                const v = EXERCISE_VIDEOS[e.exerciseId];
+                return (
+                  <button key={i} className="ex-row" onClick={() => setInfo({ id: e.exerciseId, rx: rxParts(e), notes: e.notes })}>
+                    <span className="ex-thumb" style={v ? { backgroundImage: `url(https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg)` } : undefined} aria-hidden />
+                    <span className="ex-row-main">
+                      <b>{e.superset && <span style={{ color: "var(--accent)" }}>{e.superset} · </span>}{getExercise(e.exerciseId)?.name}</b>
+                      <span className="rx">{rxParts(e).map((x) => <span key={x.label} className={x.weight ? "w" : ""}>{x.label}</span>)}</span>
+                    </span>
+                    <IconChevron size={16} />
+                  </button>
+                );
+              })}
+            </div>
             {r.self && (
               <div className="row" style={{ flexWrap: "nowrap" }}>
                 <button className="primary" style={{ flexGrow: 1 }} onClick={() => startWorkout(rt, localDate())}>{hasActive ? "Start (replaces current)" : "Start"}</button>
@@ -171,6 +190,11 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
         </div>
       </>)}
       {err && <p className="error">{err}</p>}
+
+      {info && <ExerciseSheet id={info.id} onClose={() => setInfo(null)} extra={<>
+        <div className="rx">{info.rx.map((x) => <span key={x.label} className={x.weight ? "w" : ""}>{x.label}</span>)}</div>
+        {info.notes && <p className="small hint">{info.notes}</p>}
+      </>} />}
 
       {p && dayEdit !== null && (
         <div className="sheet-backdrop" onClick={() => setDayEdit(null)}>

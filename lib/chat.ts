@@ -135,7 +135,7 @@ async function runTool(user: User, date: string, name: string, input: Record<str
       let r = rec.program.routines.find((x) => x.name.toLowerCase() === want) ?? rec.program.routines.find((x) => x.name.toLowerCase().includes(want) && want);
       if (!r && want.includes("zone 2")) {
         r = { key: "zone-2-cardio", name: "Zone 2 Cardio", purpose: "Easy, steady cardio — improves insulin sensitivity and heart health.", estMinutes: 40,
-          exercises: [{ exerciseId: "zone2_cardio", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 40, count: null, weightLb: null, restSec: 0, superset: null, notes: "Conversational pace. Watch: stay in Zone 2." }] };
+          exercises: [{ exerciseId: "zone2_cardio", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 40, count: null, weightLb: null, targetRpe: null, tempo: null, restSec: 0, superset: null, notes: "Conversational pace. Watch: stay in Zone 2." }] };
         rec.program.routines.push(r);
       }
       if (!r) return { result: `No routine named "${input.routine_name}". Existing: ${rec.program.routines.map((x) => x.name).join(", ")}.` };

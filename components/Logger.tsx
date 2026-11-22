@@ -10,6 +10,7 @@ import {
   type ActiveExercise, type ActiveWorkout,
 } from "@/lib/workout-client";
 import ExercisePicker from "./ExercisePicker";
+import { ExerciseSheet } from "./ExerciseInfo";
 
 const NEXT_TYPE: Record<SetType, SetType> = { normal: "warmup", warmup: "drop", drop: "failure", failure: "normal" };
 const TYPE_LABEL: Record<SetType, string> = { warmup: "W", drop: "D", failure: "F", normal: "" };
@@ -34,6 +35,7 @@ export default function Logger() {
   const [now, setNow] = useState(Date.now());
   const [picker, setPicker] = useState<null | { mode: "add" } | { mode: "swap"; index: number }>(null);
   const [menu, setMenu] = useState<number | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const rang = useRef<number | null>(null);
@@ -169,7 +171,9 @@ export default function Logger() {
         onSuperset={(v) => update((x) => ({ ...x, exercises: x.exercises.map((e, i) => i === ei ? { ...e, superset: v } : e) }))}
         onMove={(d) => move(ei, d)} onSwap={() => setPicker({ mode: "swap", index: ei })}
         onRemove={() => update((x) => ({ ...x, exercises: x.exercises.filter((_, i) => i !== ei) }))}
+        onInfo={() => setInfo(ex.exerciseId)}
       />)}
+      {info && <ExerciseSheet id={info} onClose={() => setInfo(null)} />}
 
       <button className="wide" onClick={() => setPicker({ mode: "add" })}>+ Add exercise</button>
       <textarea rows={2} placeholder="Workout notes" value={w.notes} onChange={(e) => update((x) => ({ ...x, notes: e.target.value }))} style={{ marginTop: 12 }} />
@@ -186,7 +190,7 @@ export default function Logger() {
       )}
 
       {picker && <ExercisePicker title={picker.mode === "swap" ? "Swap exercise" : "Add exercise"} onClose={() => setPicker(null)} onPick={(e) => {
-        const fresh = buildExercise({ exerciseId: e.id, sets: 3, warmupSets: 0, repsMin: e.kind === "weight_reps" || e.kind === "reps" ? 8 : null, repsMax: e.kind === "weight_reps" || e.kind === "reps" ? 12 : null, seconds: e.kind === "duration" ? 30 : null, minutes: e.kind === "cardio" ? 20 : null, count: e.kind === "swings" || e.kind === "throws" ? 10 : null, weightLb: null, restSec: 90, superset: null, notes: null }, stats[e.id]);
+        const fresh = buildExercise({ exerciseId: e.id, sets: 3, warmupSets: 0, repsMin: e.kind === "weight_reps" || e.kind === "reps" ? 8 : null, repsMax: e.kind === "weight_reps" || e.kind === "reps" ? 12 : null, seconds: e.kind === "duration" ? 30 : null, minutes: e.kind === "cardio" ? 20 : null, count: e.kind === "swings" || e.kind === "throws" ? 10 : null, weightLb: null, targetRpe: null, tempo: null, restSec: 90, superset: null, notes: null }, stats[e.id]);
         update((x) => picker.mode === "swap"
           ? { ...x, exercises: x.exercises.map((ex, i) => i === picker.index ? { ...fresh, sets: fresh.sets.slice(0, Math.max(1, ex.sets.length)) } : ex) }
           : { ...x, exercises: [...x.exercises, fresh] });
@@ -201,6 +205,7 @@ function ExerciseCard(props: {
   onField: (ei: number, si: number, p: Partial<LoggedSet>) => void; onToggle: (ei: number, si: number) => void;
   onAddSet: (ei: number) => void; onRemoveSet: (ei: number, si: number) => void; onNotes: (v: string) => void;
   onRest: (v: number) => void; onSuperset: (v: string | null) => void; onMove: (d: -1 | 1) => void; onSwap: () => void; onRemove: () => void;
+  onInfo: () => void;
 }) {
   const { ex, ei, stats } = props;
   const e = getExercise(ex.exerciseId)!;
@@ -214,8 +219,14 @@ function ExerciseCard(props: {
       <div className="row between">
         <div>
           {ex.superset && <span className="pill green" style={{ marginRight: 6 }}>Superset {ex.superset}</span>}
-          <Link href={`/exercise/${e.id}`} className="ex-name">{e.name}</Link>
-          <div className="small muted">{targetLabel(e.kind, ex.target)}{targetLabel(e.kind, ex.target) && " · "}Rest {fmtClock(ex.restSec)}</div>
+          <button className="ex-name link" onClick={() => props.onInfo()} aria-label={`${e.name}: how-to and demo`}>{e.name} <span className="small" style={{ fontWeight: 600 }}>ⓘ</span></button>
+          <div className="rx" style={{ marginTop: 4 }}>
+            {targetLabel(e.kind, ex.target) && <span>{targetLabel(e.kind, ex.target)}</span>}
+            {ex.target?.weightLb ? <span className="w">Start {ex.target.weightLb} lb</span> : null}
+            {ex.target?.targetRpe ? <span>RPE {ex.target.targetRpe}</span> : null}
+            {ex.target?.tempo ? <span>Tempo {ex.target.tempo}</span> : null}
+            <span>Rest {fmtClock(ex.restSec)}</span>
+          </div>
         </div>
         <button className="link" aria-label="Exercise options" onClick={() => props.setMenu(!props.menuOpen)}>•••</button>
       </div>
@@ -234,7 +245,7 @@ function ExerciseCard(props: {
         </div>
       )}
       {ex.hint && <p className="small hint">{ex.hint}</p>}
-      <p className="small muted cue">{e.cue}</p>
+      <p className="small muted cue">{ex.target?.notes || e.cue}</p>
       <input className="note-input" placeholder="Add a note" value={ex.notes} onChange={(ev) => props.onNotes(ev.target.value)} />
       <table className="sets">
         <thead><tr><th>SET</th><th>PREVIOUS</th>{cols.map((c) => <th key={c.key}>{c.label}</th>)}<th>✓</th></tr></thead>

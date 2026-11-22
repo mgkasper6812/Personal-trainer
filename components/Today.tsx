@@ -9,6 +9,8 @@ import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { startWorkout } from "@/lib/workout-client";
 import { IconChat, IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
 import ProteinCard from "./ProteinCard";
+import { ExerciseSheet } from "./ExerciseInfo";
+import { rxParts } from "@/lib/rx";
 import TonightCard from "./TonightCard";
 import { Chips, Field, Scale, Segmented, Stepper } from "./ui";
 
@@ -215,6 +217,7 @@ function Habits({ d, date, self, onChange, reload }: { d: TodayRes; date: string
 }
 
 function PlanCard({ d, date, self }: { d: TodayRes; date: string; self: boolean }) {
+  const [info, setInfo] = useState<number | null>(null);
   const r = d.readiness;
   const done = d.workoutsToday;
   if (done.length) return (
@@ -262,8 +265,12 @@ function PlanCard({ d, date, self }: { d: TodayRes; date: string; self: boolean 
           {r.dropOneSet && " One less set on each exercise."}</p>
       )}
       <div className="chips" style={{ marginBottom: 14 }}>
-        {rt.exercises.map((e, i) => <span key={i} className="chip static hero-chip">{e.superset && <b style={{ color: "var(--accent)" }}>{e.superset} </b>}{getExercise(e.exerciseId)?.name}</span>)}
+        {rt.exercises.map((e, i) => <button key={i} className="chip hero-chip" onClick={() => setInfo(i)}>{e.superset && <b style={{ color: "var(--accent)" }}>{e.superset} </b>}{getExercise(e.exerciseId)?.name}</button>)}
       </div>
+      {info !== null && rt.exercises[info] && (
+        <ExerciseSheet id={rt.exercises[info].exerciseId} onClose={() => setInfo(null)}
+          extra={<div className="rx">{rxParts(rt.exercises[info]).map((x) => <span key={x.label} className={x.weight ? "w" : ""}>{x.label}</span>)}</div>} />
+      )}
       {self && <button className="primary big wide row" style={{ justifyContent: "center", gap: 8 }} onClick={() => startWorkout(rt, date, !!d.program?.weekInfo?.deload)}><IconPlay size={18} />Start workout</button>}
     </section>
   );
