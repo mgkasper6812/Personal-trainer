@@ -277,3 +277,16 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .habit-dots i.on { background: var(--accent); }
 .habit-dots i.future { background: transparent; border: 1px solid var(--line); width: 5px; height: 5px; }
 .accent-text { color: var(--accent); }
+/* ---- Protein ---- */
+.progress.thick { height: 12px; }
+.protein-form { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-top: 10px; }
+.protein-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 16px 0 8px; }
+.protein-week > div { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); font-weight: 700; }
+.protein-week .sel span { color: var(--accent); }
+.bar-wrap { position: relative; width: 100%; height: 64px; background: var(--card2); border-radius: 8px; overflow: hidden; display: flex; align-items: flex-end; }
+.bar-wrap .bar { width: 100%; background: var(--accent2); border-radius: 6px 6px 0 0; }
+.bar-wrap .bar.hit { background: var(--accent); }
+.bar-wrap .target-line { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); }
+.protein-log { list-style: none; padding: 0; margin: 8px 0 0; }
+.protein-log li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.protein-log li span { flex: 1; }

@@ -106,3 +106,11 @@ export const getCustomHabits = async (uid: string) => (await db().get<string[]>(
 export const saveCustomHabits = (uid: string, h: string[]) => db().set(`habits-custom:${uid}`, h);
 export const getHabitLog = async (uid: string, date: string) => (await db().get<string[]>(`habitlog:${uid}:${date}`)) ?? [];
 export const saveHabitLog = (uid: string, date: string, done: string[]) => db().set(`habitlog:${uid}:${date}`, done);
+
+// ---- Protein log (per day) and saved quick-add foods
+export type ProteinEntry = { id: string; label: string; grams: number; at: string };
+export type ProteinFood = { label: string; grams: number };
+export const getProteinLog = async (uid: string, date: string) => (await db().get<ProteinEntry[]>(`protein:${uid}:${date}`)) ?? [];
+export const saveProteinLog = (uid: string, date: string, e: ProteinEntry[]) => db().set(`protein:${uid}:${date}`, e);
+export const getProteinFoods = async (uid: string) => (await db().get<ProteinFood[]>(`protein-foods:${uid}`)) ?? [];
+export const saveProteinFoods = (uid: string, f: ProteinFood[]) => db().set(`protein-foods:${uid}`, f);

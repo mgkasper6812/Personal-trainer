@@ -8,6 +8,7 @@ import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { startWorkout } from "@/lib/workout-client";
 import { IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
+import ProteinCard from "./ProteinCard";
 import TonightCard from "./TonightCard";
 import { Chips, Field, Scale, Segmented, Stepper } from "./ui";
 
@@ -132,6 +133,8 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
           <TonightCard collapsible dinner={d.dinner} tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
             plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
         )}
+
+        {adult && <ProteinCard date={date} self={self} viewUser={viewUser} />}
 
         <Habits d={d} date={date} self={self} onChange={(hw) => setD((x) => (x ? { ...x, habitWeek: hw } : x))} reload={load} />
 
