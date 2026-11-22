@@ -3,12 +3,14 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { db } from "./db";
 import { EXERCISE_BY_ID } from "./exercises";
-import { Program, RecipeBatch } from "./schemas";
+import { Program, ProteinEstimate, RecipeBatch } from "./schemas";
 import { RECIPE_SYSTEM, coachSystem, programRequest, recipeRequest } from "./prompts";
 import * as mock from "./mock";
 import type { HealthBio, Profile, Role } from "./types";
 
 export const MODEL = process.env.COACH_MODEL ?? "claude-opus-5-5";
+// Small, frequent jobs (logging) use the fast model.
+export const FAST_MODEL = process.env.COACH_FAST_MODEL ?? "claude-haiku-5-5";
 
 export class CoachError extends Error {}
 
@@ -56,20 +58,22 @@ export async function usageThisMonth() {
 /** One structured call to Claude. Returns the parsed object and the raw content (for append-only replay). */
 async function ask<S extends z.ZodType>(
   schema: S,
-  opts: { system: string; messages: Msg[]; effort: Effort; maxTokens?: number },
+  opts: { system: string; messages: Msg[]; effort: Effort; maxTokens?: number; model?: string },
 ): Promise<{ data: z.infer<S>; content: Anthropic.Beta.BetaContentBlockParam[] }> {
   let res;
   try {
     // Streamed so long answers (like a full program) don't hit the SDK's non-streaming limit.
+    const model = opts.model ?? MODEL;
+    // Server-side refusal fallback is offered for the main model; the fast model has none.
+    const fallback = model === FAST_MODEL ? {} : { betas: ["server-side-fallback-2026-07-01"] as Anthropic.Beta.AnthropicBeta[], fallbacks: "default" as const };
     res = await client().beta.messages.stream({
-      model: MODEL,
+      model,
       max_tokens: opts.maxTokens ?? 16000,
       system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
       messages: opts.messages,
       output_config: { effort: opts.effort, format: betaZodOutputFormat(schema) },
       // If a safety classifier declines, retry server-side on Anthropic's recommended fallback model.
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      ...fallback,
     }).finalMessage();
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) throw new CoachError("The coach is busy right now. Try again in a minute.");
@@ -133,4 +137,23 @@ export async function generateRecipes(input: {
   });
   const seen = new Set(input.existing.map((t) => t.toLowerCase()));
   return data.recipes.filter((r) => !seen.has(r.title.toLowerCase()));
+}
+
+// ---------------- Protein from plain words ----------------
+
+const PROTEIN_SYSTEM = `Estimate grams of protein in foods someone describes in plain words (US portions).
+Split the description into separate items. Use known label values for brand-name products (e.g. Fairlife, Premier, Chobani)
+and standard USDA values otherwise. If an amount isn't given, assume one typical serving and set assumed to true.
+Round to whole grams. Ignore anything that isn't food or drink. Return no items if nothing edible is described.`;
+
+export async function estimateProtein(text: string) {
+  if (mockMode()) return mock.protein(text);
+  const { data } = await ask(ProteinEstimate, {
+    system: PROTEIN_SYSTEM,
+    messages: [{ role: "user", content: text }],
+    effort: "low",
+    maxTokens: 2000,
+    model: FAST_MODEL,
+  });
+  return data.items.filter((i) => i.grams >= 0 && i.grams <= 300).slice(0, 15);
 }

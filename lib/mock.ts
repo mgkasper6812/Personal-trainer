@@ -118,3 +118,9 @@ export function recipes(existing: string[]): RecipeBatch["recipes"] {
   ];
   return base.map((r) => ({ ...r, title: n ? `${r.title} ${n + 1}` : r.title }));
 }
+
+export function protein(text: string) {
+  return text.split(/,| and /i).map((t) => t.trim()).filter(Boolean).map((label) => ({
+    label, grams: /egg/i.test(label) ? 12 : /shake|fairlife/i.test(label) ? 30 : /chicken/i.test(label) ? 40 : 5, assumed: !/\d/.test(label),
+  }));
+}

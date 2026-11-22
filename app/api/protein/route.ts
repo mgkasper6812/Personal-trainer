@@ -47,7 +47,7 @@ export const GET = handle(async (req) => {
 export const POST = handle(async (req) => {
   const me = await requireUser();
   if (me instanceof Response) return me;
-  const b = await body<{ date: string; add: ProteinFood; save: boolean; remove: string; removeFood: string }>(req);
+  const b = await body<{ date: string; add: ProteinFood; addMany: ProteinFood[]; save: boolean; remove: string; removeFood: string }>(req);
   if (!isDate(b.date)) return bad("Missing date");
   let entries = await getProteinLog(me.id, b.date);
   if (b.add && typeof b.add.label === "string") {
@@ -60,6 +60,12 @@ export const POST = handle(async (req) => {
       const foods = (await getProteinFoods(me.id)).filter((f) => f.label.toLowerCase() !== label.toLowerCase());
       await saveProteinFoods(me.id, [{ label, grams }, ...foods].slice(0, 20));
     }
+  }
+  if (Array.isArray(b.addMany)) {
+    const add = b.addMany.slice(0, 15).map((f) => ({ label: String(f?.label ?? "").trim().slice(0, 60), grams: Math.round(Number(f?.grams)) }))
+      .filter((f) => f.label && Number.isFinite(f.grams) && f.grams > 0 && f.grams <= 300);
+    entries = [...entries, ...add.map((f) => ({ id: crypto.randomUUID().slice(0, 8), label: f.label, grams: f.grams, at: new Date().toISOString() }))].slice(-40);
+    await saveProteinLog(me.id, b.date, entries);
   }
   if (typeof b.remove === "string") {
     entries = entries.filter((e) => e.id !== b.remove);

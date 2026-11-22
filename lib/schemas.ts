@@ -86,3 +86,11 @@ export const RecipeBatch = z.object({
   ),
 });
 export type RecipeBatch = z.infer<typeof RecipeBatch>;
+
+export const ProteinEstimate = z.object({
+  items: z.array(z.object({
+    label: z.string().describe("Short label with the amount, e.g. '2 large eggs' or 'Fairlife shake (11.5 oz)'"),
+    grams: z.number().describe("Estimated grams of protein, whole number"),
+    assumed: z.boolean().describe("True if you had to assume the portion size"),
+  })),
+});

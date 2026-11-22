@@ -18,6 +18,27 @@ export default function ProteinCard({ date, self, viewUser }: { date: string; se
   const [save, setSave] = useState(true);
   const [err, setErr] = useState("");
   const [showLog, setShowLog] = useState(false);
+  const [text, setText] = useState("");
+  const [estimating, setEstimating] = useState(false);
+  const [draft, setDraft] = useState<{ label: string; grams: number; assumed: boolean; keep: boolean }[] | null>(null);
+
+  async function estimate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setEstimating(true); setErr("");
+    try {
+      const r = await api<{ items: { label: string; grams: number; assumed: boolean }[] }>("/api/protein/estimate", { body: { text } });
+      if (!r.items.length) setErr("Couldn't find any food in that — try again with what and how much.");
+      setDraft(r.items.map((i) => ({ ...i, keep: true })));
+    } catch (e) { setErr((e as Error).message); }
+    setEstimating(false);
+  }
+  async function confirmDraft() {
+    if (!draft) return;
+    const items = draft.filter((d) => d.keep && d.grams > 0).map(({ label, grams }) => ({ label, grams }));
+    setDraft(null); setText("");
+    if (items.length) await post({ addMany: items });
+  }
 
   const load = useCallback(() => api<View>(`/api/protein?date=${date}${viewUser ? `&user=${viewUser}` : ""}`).then(setV, (e) => setErr(e.message)), [date, viewUser]);
   useEffect(() => { load(); }, [load]);
@@ -48,6 +69,27 @@ export default function ProteinCard({ date, self, viewUser }: { date: string; se
       <div className="progress thick"><div style={{ width: `${pct}%` }} /></div>
 
       {self && (<>
+        <form className="nl-form" onSubmit={estimate}>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="What did you eat? e.g. 2 eggs and a Fairlife shake" aria-label="Describe what you ate" enterKeyHint="send" />
+          <button className="primary" disabled={!text.trim() || estimating}>{estimating ? <span className="spinner" style={{ margin: 0 }} /> : "Log"}</button>
+        </form>
+        {draft && draft.length > 0 && (
+          <div className="nl-draft">
+            <span className="eyebrow">Check the estimate</span>
+            {draft.map((d, i) => (
+              <div key={i} className="nl-row">
+                <input type="checkbox" checked={d.keep} aria-label={`Include ${d.label}`} onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, keep: e.target.checked } : x)))} />
+                <span className={d.keep ? "" : "muted"}>{d.label}{d.assumed && <span className="detail small muted"> · assumed 1 serving</span>}</span>
+                <input inputMode="numeric" value={d.grams} aria-label={`Grams for ${d.label}`} onChange={(e) => setDraft(draft.map((x, j) => (j === i ? { ...x, grams: Number(e.target.value.replace(/\D/g, "")) || 0 } : x)))} />
+                <span className="small muted">g</span>
+              </div>
+            ))}
+            <div className="row" style={{ flexWrap: "nowrap", marginTop: 10 }}>
+              <button className="primary" style={{ flexGrow: 1 }} onClick={confirmDraft}>Add {draft.filter((d) => d.keep).reduce((a, d) => a + d.grams, 0)} g</button>
+              <button onClick={() => setDraft(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
         <div className="chips scroll-x" style={{ marginTop: 12 }}>
           {v.dinner && <button className="chip on" onClick={() => add(v.dinner!)}>+{v.dinner.grams} g · {v.dinner.label.replace("Dinner: ", "Dinner")}</button>}
           {v.foods.map((f) => <button key={f.label} className="chip" onClick={() => add(f)}>+{f.grams} · {f.label}</button>)}
