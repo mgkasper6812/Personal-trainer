@@ -300,3 +300,15 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .week-grid button.on { background: var(--soft); color: var(--text); }
 .week-grid button.today { outline: 2px solid var(--accent); }
 .week-grid button b { font-size: 11px; }
+/* ---- Coach chat ---- */
+.icon-btn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--card); border: 1px solid var(--line); color: var(--accent); flex: none; }
+.chat-page { padding-bottom: calc(env(safe-area-inset-bottom) + 170px); }
+.bubble { max-width: 86%; padding: 11px 14px; border-radius: 18px; white-space: pre-wrap; line-height: 1.45; }
+.bubble.coach { background: var(--card); border: 1px solid var(--line); }
+.bubble.me { background: var(--accent); color: var(--accent-ink); font-weight: 500; }
+.chat-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chat-action { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--soft); color: var(--accent); }
+.chat-composer { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 76px); z-index: 8; display: flex; gap: 8px; padding: 10px 16px;
+  background: var(--bg); border-top: 1px solid var(--line); max-width: 640px; margin: 0 auto; }
+.chat-composer textarea { resize: none; min-height: 46px; max-height: 120px; }
+.chat-composer button { flex: none; }

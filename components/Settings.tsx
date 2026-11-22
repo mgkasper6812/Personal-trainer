@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { IconChart, IconChevron, IconHeart, IconUser, IconUsers, IconWatch } from "./icons";
+import { IconChart, IconChat, IconChevron, IconHeart, IconUser, IconUsers, IconWatch } from "./icons";
 import { SHORTCUT_NAME } from "./WorkoutDetail";
 
 export default function Settings({ name, role }: { name: string; role: "parent" | "athlete" }) {
@@ -23,6 +23,7 @@ export default function Settings({ name, role }: { name: string; role: "parent" 
         <div><h1 style={{ margin: 0 }}>{name}</h1><span className="small muted">{role === "parent" ? "Parent" : "Athlete"}</span></div>
       </div>
       <div className="card menu">
+        <Link href="/coach" className="menu-row"><IconChat /><span>Talk to your coach</span><IconChevron size={18} /></Link>
         {role === "parent" && <Link href="/me/health" className="menu-row"><IconHeart /><span>Health bio</span><IconChevron size={18} /></Link>}
         {role === "parent" && <Link href="/family" className="menu-row"><IconUsers /><span>Family &amp; alerts</span><IconChevron size={18} /></Link>}
         <Link href="/progress" className="menu-row"><IconChart /><span>Progress</span><IconChevron size={18} /></Link>

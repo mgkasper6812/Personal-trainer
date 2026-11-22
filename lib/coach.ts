@@ -18,7 +18,7 @@ type Effort = "low" | "medium" | "high";
 type Msg = Anthropic.Beta.BetaMessageParam;
 
 let _client: Anthropic | undefined;
-const client = () => (_client ??= new Anthropic());
+export const client = () => (_client ??= new Anthropic());
 
 export const mockMode = () =>
   process.env.NODE_ENV !== "production" && (process.env.COACH_MOCK === "1" || !process.env.ANTHROPIC_API_KEY);
@@ -32,7 +32,7 @@ const PRICES: Record<string, { in: number; out: number; cacheRead: number }> = {
   "claude-haiku-5-5": { in: 0.1, out: 0.5, cacheRead: 0.01 },
 };
 
-async function recordUsage(model: string, u: Anthropic.Beta.BetaUsage) {
+export async function recordUsage(model: string, u: Anthropic.Beta.BetaUsage) {
   const p = PRICES[model] ?? PRICES["claude-opus-5-5"];
   const write = u.cache_creation_input_tokens ?? 0;
   const read = u.cache_read_input_tokens ?? 0;

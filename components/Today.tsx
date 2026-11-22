@@ -7,7 +7,7 @@ import { ADULT_SYMPTOMS, ATHLETE_RED_FLAGS, type Readiness } from "@/lib/rules";
 import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { startWorkout } from "@/lib/workout-client";
-import { IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
+import { IconChat, IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
 import ProteinCard from "./ProteinCard";
 import TonightCard from "./TonightCard";
 import { Chips, Field, Scale, Segmented, Stepper } from "./ui";
@@ -70,10 +70,11 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   return (
     <main>
       <header className="home-head">
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="eyebrow">{dateLabel}{!isToday && <> · <button className="link" onClick={() => setDate(localDate())}>Back to today</button></>}</div>
           <h1 style={{ margin: "2px 0 0" }}>{viewUser && d ? `${d.user.name}'s day` : `${greeting()}${d ? `, ${d.me.name}` : ""}`}</h1>
         </div>
+        {d && !viewUser && <Link href="/coach" className="icon-btn" aria-label="Talk to your coach"><IconChat size={22} /></Link>}
         {d && viewUser && <Link href="/today" className="switch-chip"><span className="avatar" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>{d.me.name[0]}</span>Me</Link>}
         {d && !viewUser && d.family.slice(0, 1).map((f) => (
           <Link key={f.id} href={`/today?user=${f.id}`} className="switch-chip" aria-label={`Switch to ${f.name}${f.alerts ? `, ${f.alerts} alert` : ""}`}>
