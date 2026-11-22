@@ -49,15 +49,42 @@ export const PUT = handle(async (req) => {
   return ok({ record: rec });
 });
 
-// Change the start date without rebuilding the program.
+const TEMPLATES: Record<string, Omit<Routine, "key">> = {
+  zone2: {
+    name: "Zone 2 Cardio",
+    purpose: "Easy, steady cardio — improves insulin sensitivity and heart health.",
+    estMinutes: 40,
+    exercises: [{ exerciseId: "zone2_cardio", sets: 1, warmupSets: 0, repsMin: null, repsMax: null, seconds: null, minutes: 40, count: null, weightLb: null, restSec: 0, superset: null, notes: "Conversational pace. Watch: stay in Zone 2." }],
+  },
+  blank: { name: "New routine", purpose: "Your own routine.", estMinutes: 30, exercises: [] },
+};
+
+// Change the start date, the weekly schedule, or add a routine — without rebuilding the program.
 export const PATCH = handle(async (req) => {
   const me = await requireUser();
   if (me instanceof Response) return me;
-  const { startDate } = await body<{ startDate: string }>(req);
-  if (!isDate(startDate)) return bad("Pick a valid date");
+  const b = await body<{ startDate: string; day: number; routineKey: string | null; note: string | null; newRoutine: { template: string; name?: string; day?: number } }>(req);
   const rec = await getProgram(me.id);
   if (!rec) return bad("No program yet", 404);
-  rec.startDate = startDate;
+  if (b.startDate !== undefined) {
+    if (!isDate(b.startDate)) return bad("Pick a valid date");
+    rec.startDate = b.startDate;
+  }
+  let created: string | null = null;
+  if (b.newRoutine && TEMPLATES[b.newRoutine.template]) {
+    const t = TEMPLATES[b.newRoutine.template];
+    const base = (b.newRoutine.name || t.name).trim().slice(0, 60) || t.name;
+    let key = base.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "routine";
+    while (rec.program.routines.some((r) => r.key === key)) key += "-2";
+    rec.program.routines.push({ ...t, key, name: base, exercises: t.exercises.map((e) => ({ ...e })) });
+    created = key;
+    if (typeof b.newRoutine.day === "number") { b.day = b.newRoutine.day; b.routineKey = key; }
+  }
+  if (typeof b.day === "number" && b.day >= 0 && b.day <= 6) {
+    const key = b.routineKey && rec.program.routines.some((r) => r.key === b.routineKey) ? b.routineKey : null;
+    const note = typeof b.note === "string" ? b.note.slice(0, 60) : null;
+    rec.program.schedule = rec.program.schedule.map((s) => (s.dayOfWeek === b.day ? { ...s, routineKey: key, note: key ? null : note ?? "Rest" } : s));
+  }
   await saveProgram(me.id, rec);
-  return ok({ record: rec });
+  return ok({ record: rec, created });
 });

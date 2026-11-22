@@ -296,3 +296,7 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .nl-row { display: grid; grid-template-columns: 22px 1fr 64px 14px; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .nl-row input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
 .nl-row input[inputmode] { text-align: center; padding: 6px; font-weight: 700; }
+.week-grid button { background: var(--bg); border-radius: 8px; padding: 6px 2px; text-align: center; font-size: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; min-height: 56px; border: 0; align-items: center; justify-content: flex-start; }
+.week-grid button.on { background: var(--soft); color: var(--text); }
+.week-grid button.today { outline: 2px solid var(--accent); }
+.week-grid button b { font-size: 11px; }

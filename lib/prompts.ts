@@ -49,7 +49,9 @@ and lesson days (keep those days light or complementary). Include a "Test Day" r
 (tee and front toss), home to first, 60-yd, pro agility, broad jump and outfield throw velocity — retest in week 4.
 Include band arm care before any throwing. nutrition must be null; give performance fueling guidance in fueling.`
       : `Set nutrition targets from their numbers (Mifflin-St Jeor, realistic activity factor, ~500 kcal deficit, respecting the floor).
-Build the evening plan from their TV time, snacks and chosen swaps. Put the post-meal walk in dailyHabits. fueling must be null.`;
+Build the evening plan from their TV time, snacks and chosen swaps. Put the post-meal walk in dailyHabits. fueling must be null.
+If they chose a Zone 2 cardio day, schedule a "Zone 2 Cardio" routine (zone2_cardio, 30–45 min) on that day. On their busy days,
+schedule rest (routineKey null) with a short note like "Busy day — post-dinner walk only".`;
   const health = bio ? `\n\nHealth bio (private; respect conditions, medications and food dislikes):\n${JSON.stringify({ ...bio, updatedAt: undefined }, null, 2)}` : "";
   return `${common}\n\n${specific}\n\nProfile:\n${JSON.stringify(profile, null, 2)}${health}`;
 }

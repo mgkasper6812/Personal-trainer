@@ -12,7 +12,7 @@ const ADULT_DEFAULT: AdultProfile = {
   kind: "adult", goals: ["Lose weight", "Improve blood sugar"], pace: "steady", sex: "male", age: 45, heightIn: 70, weightLb: 230,
   targetWeightLb: null, glucoseStatus: "not_sure", a1c: null, meds: [], conditions: [], toughestTime: "Late-night TV", tvTime: "20:00",
   snacks: [], snackFrequency: "most", eveningSwaps: [], kitchenCloses: "20:30", trackingStyle: "evenings", dinners: ["Home-cooked"],
-  daysPerWeek: 4, minutes: 30, equipment: ["Dumbbells"], experience: "returning", limitations: [], avoid: "", devices: ["Apple Watch"],
+  daysPerWeek: 4, minutes: 30, busyDays: [], cardioDay: null, equipment: ["Dumbbells"], experience: "returning", limitations: [], avoid: "", devices: ["Apple Watch"],
   tone: "direct", proactive: "important", notes: "",
 };
 const ATHLETE_DEFAULT: AthleteProfile = {
@@ -80,6 +80,10 @@ const adultSteps: Step<AdultProfile>[] = [
   { title: "Training setup", render: (p, set) => (<>
     <Field label="Days per week"><Segmented options={[2, 3, 4, 5, 6]} value={p.daysPerWeek} onChange={(v) => set({ daysPerWeek: v })} /></Field>
     <Field label="Minutes per session"><Segmented options={[10, 20, 30, 40]} value={p.minutes} onChange={(v) => set({ minutes: v })} /></Field>
+    <Field label="Busy days (keep light or rest)"><Chips multi options={DAYS} value={(p.busyDays ?? []) as (typeof DAYS)[number][]} onChange={(v) => set({ busyDays: v as string[] })} /></Field>
+    <Field label="Zone 2 cardio day" hint="An easy, steady 30–45 min session — great for blood sugar and heart health.">
+      <Chips options={["None", ...DAYS] as const} value={p.cardioDay ?? "None"} onChange={(v) => set({ cardioDay: v === "None" ? null : (v as string) })} />
+    </Field>
     <Field label="Equipment at home"><Chips multi options={["Dumbbells", "Kettlebell", "Bands", "Bench", "Pull-up bar", "Bike", "Treadmill", "None"]} value={p.equipment} onChange={(v) => set({ equipment: v as string[] })} /></Field>
     <Field label="Experience"><Segmented options={["new", "returning", "regular"] as const} value={p.experience} onChange={(v) => set({ experience: v })} labels={{ new: "New", returning: "Returning", regular: "Regular" }} /></Field>
     <Field label="Joints to protect"><Chips multi options={REGIONS} value={p.limitations} onChange={(v) => set({ limitations: v as Region[] })} /></Field>

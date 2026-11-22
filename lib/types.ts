@@ -37,6 +37,8 @@ export type AdultProfile = {
   dinners: string[];
   daysPerWeek: number;
   minutes: number;
+  busyDays?: string[]; // keep these light or rest
+  cardioDay?: string | null; // weekly Zone 2 cardio day
   equipment: string[];
   experience: "new" | "returning" | "regular";
   limitations: Region[];

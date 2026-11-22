@@ -37,6 +37,14 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
     return EXERCISES.filter((e) => (f === "All" || e.tags.includes(f)) && (!t || `${e.name} ${e.muscles.join(" ")} ${e.equipment.join(" ")}`.toLowerCase().includes(t)));
   }, [q, f]);
 
+  const [dayEdit, setDayEdit] = useState<number | null>(null);
+  async function patch(b: Record<string, unknown>) {
+    try {
+      const x = await api<{ record: ProgramRecord; created: string | null }>("/api/program", { method: "PATCH", body: b });
+      setR((c) => (c ? { ...c, record: x.record } : c));
+      return x.created;
+    } catch (e) { setErr((e as Error).message); return null; }
+  }
   async function changeStart(startDate: string) {
     if (!startDate) return;
     try { const x = await api<{ record: ProgramRecord }>("/api/program", { method: "PATCH", body: { startDate } }); setR((c) => (c ? { ...c, record: x.record } : c)); }
@@ -87,9 +95,13 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
             {[1, 2, 3, 4, 5, 6, 0].map((d) => {
               const s = p.schedule.find((x) => x.dayOfWeek === d);
               const rt = s?.routineKey ? p.routines.find((x) => x.key === s.routineKey) : null;
-              return <div key={d} className={`${rt ? "on" : ""} ${d === today ? "today" : ""}`}><b>{DAY[d]}</b><span>{rt?.name ?? s?.note ?? "Rest"}</span></div>;
+              const cls = `${rt ? "on" : ""} ${d === today ? "today" : ""}`;
+              return r.self
+                ? <button key={d} className={cls} onClick={() => setDayEdit(d)} aria-label={`Change ${DAY[d]}: ${rt?.name ?? "Rest"}`}><b>{DAY[d]}</b><span>{rt?.name ?? s?.note ?? "Rest"}</span></button>
+                : <div key={d} className={cls}><b>{DAY[d]}</b><span>{rt?.name ?? s?.note ?? "Rest"}</span></div>;
             })}
           </div>
+          {r.self && <p className="small muted" style={{ margin: "0 0 6px" }}>Tap a day to change it.</p>}
           <p className="small muted" style={{ margin: 0 }}>{p.summary}</p>
         </section>
         <section className="card">
@@ -159,6 +171,28 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
         </div>
       </>)}
       {err && <p className="error">{err}</p>}
+
+      {p && dayEdit !== null && (
+        <div className="sheet-backdrop" onClick={() => setDayEdit(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${DAY[dayEdit]} plan`}>
+            <h2>{DAY[dayEdit]}</h2>
+            <ul className="picker-list">
+              {p.routines.map((rt) => {
+                const on = p.schedule.find((x) => x.dayOfWeek === dayEdit)?.routineKey === rt.key;
+                return <li key={rt.key}><button onClick={async () => { await patch({ day: dayEdit, routineKey: rt.key }); setDayEdit(null); }}>
+                  <b>{on ? "✓ " : ""}{rt.name}</b><span className="small muted">~{rt.estMinutes} min · {rt.exercises.map((e) => getExercise(e.exerciseId)?.name).join(", ") || "no exercises yet"}</span>
+                </button></li>;
+              })}
+              <li><button onClick={async () => { await patch({ day: dayEdit, routineKey: null, note: "Rest" }); setDayEdit(null); }}><b>Rest</b><span className="small muted">Recovery day</span></button></li>
+              <li><button onClick={async () => { await patch({ day: dayEdit, routineKey: null, note: "Busy — walk only" }); setDayEdit(null); }}><b>Busy day</b><span className="small muted">No workout; post-dinner walk only</span></button></li>
+              {!p.routines.some((rt) => rt.exercises.some((e) => e.exerciseId === "zone2_cardio")) && (
+                <li><button onClick={async () => { await patch({ newRoutine: { template: "zone2", day: dayEdit } }); setDayEdit(null); }}><b>+ New: Zone 2 Cardio</b><span className="small muted">40 min easy, steady cardio</span></button></li>
+              )}
+              <li><button onClick={async () => { const key = await patch({ newRoutine: { template: "blank", day: dayEdit } }); if (key) window.location.href = `/routines/${key}`; }}><b>+ New routine…</b><span className="small muted">Build your own, then add exercises</span></button></li>
+            </ul>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
