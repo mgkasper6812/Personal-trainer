@@ -100,3 +100,9 @@ export const getMealPlan = async (uid: string, weekStart: string): Promise<MealP
 export const saveMealPlan = (uid: string, p: MealPlan) => db().set(`mealplan:${uid}:${p.weekStart}`, p);
 export const getShare = (token: string) => db().get<{ uid: string; weekStart: string }>(`groceryshare:${token}`);
 export const saveShare = (token: string, v: { uid: string; weekStart: string }) => db().set(`groceryshare:${token}`, v);
+
+// ---- Daily habits: the program's habits plus the user's own; each day's ticks
+export const getCustomHabits = async (uid: string) => (await db().get<string[]>(`habits-custom:${uid}`)) ?? [];
+export const saveCustomHabits = (uid: string, h: string[]) => db().set(`habits-custom:${uid}`, h);
+export const getHabitLog = async (uid: string, date: string) => (await db().get<string[]>(`habitlog:${uid}:${date}`)) ?? [];
+export const saveHabitLog = (uid: string, date: string, done: string[]) => db().set(`habitlog:${uid}:${date}`, done);

@@ -264,3 +264,16 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .dinner-row { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--card2); color: var(--text); text-decoration: none; }
 .dinner-row b { font-size: 19px; }
 .dinner-row.empty { color: var(--accent); }
+/* ---- Habits ---- */
+.habit-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.habit-list li { border-bottom: 1px solid var(--line); }
+.habit-list li:last-child { border-bottom: 0; }
+.habit-list label { flex-direction: row; align-items: center; gap: 12px; min-height: 52px; color: var(--text); font-size: 15px; cursor: pointer; }
+.habit-list input { width: 24px; height: 24px; flex: none; accent-color: var(--accent); }
+.habit-name { flex: 1; min-width: 0; }
+.habit-list input:checked + .habit-name { color: var(--muted); text-decoration: line-through; }
+.habit-dots { display: flex; gap: 3px; flex: none; }
+.habit-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--track); }
+.habit-dots i.on { background: var(--accent); }
+.habit-dots i.future { background: transparent; border: 1px solid var(--line); width: 5px; height: 5px; }
+.accent-text { color: var(--accent); }

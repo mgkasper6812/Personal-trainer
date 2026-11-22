@@ -22,7 +22,8 @@ type TodayRes = {
   slotNote: string | null; startDate: string | null; routine: Routine | null; baseRoutineKey: string | null; readiness: Readiness | null;
   checkIn: CheckIn | null; evening: EveningLog | null;
   tonight: { tvTime: string; kitchenCloses: string | null; swaps: string[]; plan: unknown } | null;
-  nutrition: { calories: number; proteinG: number; carbApproach: string } | null; fueling: string | null; habits: string[];
+  nutrition: { calories: number; proteinG: number; carbApproach: string } | null; fueling: string | null;
+  habitList: { name: string; custom: boolean }[]; habitWeek: Record<string, string[]>;
   weekStrip: { date: string; dow: number; routine: string | null; done: boolean }[];
   workoutsToday: WorkoutSummary[];
 };
@@ -132,14 +133,8 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
             plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
         )}
 
-        {(d.habits.length > 0 || d.nutrition || d.fueling) && (
-          <section className="card">
-            <span className="eyebrow">Daily habits</span>
-            <ul className="checks" style={{ marginTop: 8 }}>{d.habits.map((h) => <li key={h}>{h}</li>)}</ul>
-            {d.nutrition && <p className="small" style={{ marginBottom: 0 }}><b>{d.nutrition.calories.toLocaleString()} cal · {d.nutrition.proteinG}g protein.</b> <span className="muted">{d.nutrition.carbApproach}</span></p>}
-            {d.fueling && <p className="small" style={{ marginBottom: 0 }}><b>Fuel:</b> <span className="muted">{d.fueling}</span></p>}
-          </section>
-        )}
+        <Habits d={d} date={date} self={self} onChange={(hw) => setD((x) => (x ? { ...x, habitWeek: hw } : x))} reload={load} />
+
         {adult && <p className="small muted" style={{ textAlign: "center" }}>General guidance, not medical advice — your doctor leads on A1C and medications.</p>}
 
         {sheet && (
@@ -152,6 +147,66 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
         )}
       </>)}
     </main>
+  );
+}
+
+function Habits({ d, date, self, onChange, reload }: { d: TodayRes; date: string; self: boolean; onChange: (hw: Record<string, string[]>) => void; reload: () => void }) {
+  const [adding, setAdding] = useState(false);
+  const [txt, setTxt] = useState("");
+  const [editing, setEditing] = useState(false);
+  const done = d.habitWeek[date] ?? [];
+  const list = d.habitList;
+  const count = list.filter((h) => done.includes(h.name)).length;
+  async function toggle(name: string, on: boolean) {
+    const next = { ...d.habitWeek, [date]: on ? [...done, name] : done.filter((x) => x !== name) };
+    onChange(next);
+    await api("/api/habits", { body: { date, habit: name, done: on } }).catch(() => reload());
+  }
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!txt.trim()) return;
+    await api("/api/habits", { body: { add: txt } });
+    setTxt(""); setAdding(false); reload();
+  }
+  if (!list.length && !self) return null;
+  return (
+    <section className="card">
+      <div className="row between">
+        <span className="eyebrow">Daily habits</span>
+        <span className="row" style={{ gap: 10 }}>
+          {list.length > 0 && <b className={`small ${count === list.length ? "accent-text" : ""}`}>{count}/{list.length} today</b>}
+          {self && list.some((h) => h.custom) && <button className="link small" onClick={() => setEditing(!editing)}>{editing ? "Done" : "Edit"}</button>}
+        </span>
+      </div>
+      <ul className="habit-list">
+        {list.map((h) => {
+          const on = done.includes(h.name);
+          return (
+            <li key={h.name}>
+              <label>
+                <input type="checkbox" checked={on} disabled={!self} onChange={(e) => toggle(h.name, e.target.checked)} />
+                <span className="habit-name">{h.name}</span>
+                {editing && h.custom ? (
+                  <button className="link danger-text small" onClick={async (e) => { e.preventDefault(); await api("/api/habits", { body: { remove: h.name } }); reload(); }}>Remove</button>
+                ) : (
+                  <span className="habit-dots" aria-label={`${h.name}: ${d.weekStrip.filter((x) => d.habitWeek[x.date]?.includes(h.name)).length} of 7 days this week`}>
+                    {d.weekStrip.map((x) => <i key={x.date} className={`${d.habitWeek[x.date]?.includes(h.name) ? "on" : ""} ${x.date > localDate() ? "future" : ""}`} />)}
+                  </span>
+                )}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {self && (adding ? (
+        <form className="row" style={{ flexWrap: "nowrap", marginTop: 10 }} onSubmit={add}>
+          <input autoFocus placeholder="e.g. 8,000 steps, 64 oz water" value={txt} onChange={(e) => setTxt(e.target.value)} />
+          <button type="submit" className="primary" disabled={!txt.trim()}>Add</button>
+        </form>
+      ) : <button className="link small" style={{ marginTop: 8 }} onClick={() => setAdding(true)}>+ Add a habit</button>)}
+      {d.nutrition && <p className="small" style={{ marginBottom: 0 }}><b>{d.nutrition.calories.toLocaleString()} cal · {d.nutrition.proteinG}g protein.</b> <span className="muted">{d.nutrition.carbApproach}</span></p>}
+      {d.fueling && <p className="small" style={{ marginBottom: 0 }}><b>Fuel:</b> <span className="muted">{d.fueling}</span></p>}
+    </section>
   );
 }
 
