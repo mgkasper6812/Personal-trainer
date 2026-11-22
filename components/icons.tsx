@@ -20,3 +20,6 @@ export const IconUsers = (p: P) => svg(<><circle cx="9" cy="8" r="3.5" /><path d
 export const IconSearch = (p: P) => svg(<><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>, p);
 export const IconClose = (p: P) => svg(<path d="M6 6l12 12M18 6 6 18" />, p);
 export const IconTrophy = (p: P) => svg(<><path d="M8 4h8v5a4 4 0 0 1-8 0Z" /><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6" /></>, p);
+export const IconHeart = (p: P) => svg(<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z" />, p);
+export const IconFork = (p: P) => svg(<><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10" /><path d="M17 21V3c-2 1.5-3 4-3 7s1 3 3 3" /></>, p);
+export const IconCart = (p: P) => svg(<><path d="M3 4h2l2.5 11h11L21 7H6.2" /><circle cx="9" cy="19.5" r="1.5" /><circle cx="17" cy="19.5" r="1.5" /></>, p);

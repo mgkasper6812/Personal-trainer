@@ -159,3 +159,47 @@ export type Alert = {
   createdAt: string;
   seen: boolean;
 };
+
+// ---------------- Health bio (private to its owner) ----------------
+
+export type Medication = { name: string; dose: string; timing: string; purpose: string };
+export type LabResult = { name: string; value: number; unit: string; date: string };
+
+export type HealthBio = {
+  conditions: string[]; // e.g. Prediabetes, Insulin resistance, High blood pressure
+  medications: Medication[];
+  supplements: string;
+  allergies: string[];
+  dislikes: string[]; // foods he won't eat
+  dietStyle: string[]; // e.g. Lower-carb, High-fiber, Mediterranean
+  alcohol: string;
+  labs: LabResult[];
+  doctor: string;
+  notes: string;
+  updatedAt: string;
+};
+
+// ---------------- Meals ----------------
+
+export type Ingredient = { item: string; qty: number | null; unit: string; aisle: string; note: string | null };
+
+export type Recipe = {
+  id: string;
+  title: string;
+  description: string;
+  servings: number;
+  timeMin: number;
+  tags: string[];
+  ingredients: Ingredient[];
+  steps: string[];
+  nutrition: { calories: number; proteinG: number; carbsG: number; fiberG: number; fatG: number }; // per serving, estimated
+  plateTip: string; // how Mike builds his plate
+  familyTip: string | null; // add-ons for the rest of the family
+  addedAt: string;
+  batch: string; // week it arrived (YYYY-MM-DD)
+  rating: 1 | -1 | null;
+  favorite: boolean;
+};
+export type RecipeSummary = Pick<Recipe, "id" | "title" | "description" | "timeMin" | "tags" | "nutrition" | "batch" | "rating" | "favorite">;
+
+export type MealPlan = { weekStart: string; days: Record<string, string | null>; have: string[]; extras: string[]; shareToken: string | null };

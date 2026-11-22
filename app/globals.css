@@ -240,3 +240,27 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .rec-row > span:first-child { display: flex; flex-direction: column; }
 .rec-val { padding: 5px 10px; border-radius: 999px; background: var(--soft); color: var(--accent); font-weight: 700; font-size: 13px; white-space: nowrap; }
 .chart .line { stroke: var(--accent); } .chart .dot { fill: var(--accent); } .chart .dot.best { fill: var(--accent2); }
+.med-row { padding: 12px 0; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+/* ---- Meals ---- */
+.plan-row { display: flex; align-items: center; gap: 12px; min-height: 60px; border-bottom: 1px solid var(--line); }
+.plan-row:last-child { border-bottom: 0; }
+.plan-row.today .plan-day b { color: var(--accent); }
+.plan-day { width: 42px; display: flex; flex-direction: column; align-items: center; flex: none; }
+.plan-day b { font-size: 14px; } .plan-day span { font-size: 12px; color: var(--muted); }
+.plan-recipe { flex-grow: 1; display: flex; flex-direction: column; text-decoration: none; color: var(--text); padding: 8px 0; min-width: 0; }
+.plan-pick { flex-grow: 1; text-align: left; border: 1px dashed var(--line); background: transparent; color: var(--muted); min-height: 40px; }
+.hero-lite { background: var(--card2); }
+.prompt-box { background: var(--input); border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 14px; word-break: break-word; }
+.recipe-grid { display: grid; gap: 10px; margin: 10px 0 18px; }
+.recipe-card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.recipe-link { display: flex; flex-direction: column; gap: 4px; padding: 14px 52px 14px 16px; color: var(--text); text-decoration: none; }
+.recipe-link b { font-family: var(--display); font-size: 18px; }
+.recipe-meta { font-size: 12px; font-weight: 600; color: var(--accent); }
+.fav { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; }
+.row > .fav, h1 + .fav { position: static; }
+.fav.on { color: var(--red); } .fav.on svg path { fill: var(--red); }
+.plate { background: var(--soft); border-color: transparent; }
+.recipe-steps { padding-left: 22px; margin: 8px 0 0; } .recipe-steps li { margin-bottom: 10px; }
+.dinner-row { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--card2); color: var(--text); text-decoration: none; }
+.dinner-row b { font-size: 19px; }
+.dinner-row.empty { color: var(--accent); }

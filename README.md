@@ -7,6 +7,8 @@ workout logger (previous values, set types, rest timer, supersets, PRs, per-exer
 whose pain/readiness rules adjust the day's session and alert the parent. Dad gets condition-aware guidance
 (prediabetes / insulin resistance) and a nightly "Tonight" plan; Maicie gets hitting, speed, throwing and test tracking
 with performance-only fueling. Apple Watch heart rate and calories sync through an iPhone Shortcut (Settings → Apple Watch sync).
+Meals: a family dinner library (new AI recipes every Friday, tuned to Dad's private health bio and the family's ratings),
+a weekly dinner planner, and a grocery list grouped by aisle with a private link Claude in Chrome can use to fill a store cart.
 
 Stack: Next.js on Vercel · Upstash Redis · Claude API (`claude-opus-5-5`, with server-side refusal fallback).
 
@@ -17,6 +19,7 @@ Stack: Next.js on Vercel · Upstash Redis · Claude API (`claude-opus-5-5`, with
 3. **Settings → Environment Variables**, add:
    - `ANTHROPIC_API_KEY` — from console.anthropic.com
    - `SESSION_SECRET` — any long random string (e.g. run `openssl rand -base64 32`)
+   - `CRON_SECRET` — another long random string; lets Vercel's weekly job add new recipes every Friday
 4. Deploy. Open the site on your iPhone in Safari, create the parent account, then **Family → Add a family member** for Maicie.
 5. On each iPhone: Share → **Add to Home Screen**.
 

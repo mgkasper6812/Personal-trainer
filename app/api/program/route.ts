@@ -1,6 +1,6 @@
 import { requireUser, resolveTarget } from "@/lib/auth";
 import { cleanProgram, generateProgram } from "@/lib/coach";
-import { getProfile, getProgram, saveProgram } from "@/lib/data";
+import { getHealthBio, getProfile, getProgram, saveProgram } from "@/lib/data";
 import { isDate, mondayOf } from "@/lib/dates";
 import { EXERCISE_BY_ID } from "@/lib/exercises";
 import { bad, body, handle, ok } from "@/lib/http";
@@ -26,7 +26,8 @@ export const POST = handle(async (req) => {
   const date = isDate(b.date) ? b.date : new Date().toISOString().slice(0, 10);
   // Start on the chosen day, or this week's Monday by default.
   const startDate = isDate(b.startDate) ? b.startDate : mondayOf(date);
-  const program = await generateProgram(me.role, me.name, profile, startDate);
+  const bio = me.role === "parent" ? await getHealthBio(me.id) : null;
+  const program = await generateProgram(me.role, me.name, profile, startDate, bio);
   const record = { program, startDate, createdAt: new Date().toISOString() };
   await saveProgram(me.id, record);
   return ok({ record });

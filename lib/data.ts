@@ -2,7 +2,7 @@ import { db } from "./db";
 import { addDays } from "./dates";
 import type { Program } from "./schemas";
 import type { ExercisePoint } from "./stats";
-import type { Alert, CheckIn, EveningLog, Profile, Workout, WorkoutSummary } from "./types";
+import type { Alert, CheckIn, EveningLog, HealthBio, MealPlan, Profile, Recipe, RecipeSummary, Workout, WorkoutSummary } from "./types";
 
 export type ProgramRecord = { program: Program; startDate: string; createdAt: string };
 export type ExerciseStats = { last: { date: string; sets: Workout["exercises"][number]["sets"] } | null; history: ExercisePoint[] };
@@ -77,3 +77,26 @@ export async function addWeight(uid: string, date: string, lb: number) {
   list.sort((a, b) => a.date.localeCompare(b.date));
   await db().set(`weights:${uid}`, list.slice(-730));
 }
+
+// ---- Health bio (owner only — never served for another user)
+export const getHealthBio = (uid: string) => db().get<HealthBio>(`health:${uid}`);
+export const saveHealthBio = (uid: string, h: HealthBio) => db().set(`health:${uid}`, h);
+
+// ---- Recipe library (family-wide)
+export const listRecipes = async () => (await db().get<RecipeSummary[]>("recipes:index")) ?? [];
+export const getRecipe = (id: string) => db().get<Recipe>(`recipe:${id}`);
+const summary = (r: Recipe): RecipeSummary => ({ id: r.id, title: r.title, description: r.description, timeMin: r.timeMin, tags: r.tags, nutrition: r.nutrition, batch: r.batch, rating: r.rating, favorite: r.favorite });
+export async function putRecipes(recipes: Recipe[]) {
+  await Promise.all(recipes.map((r) => db().set(`recipe:${r.id}`, r)));
+  const index = await listRecipes();
+  const byId = new Map(index.map((r) => [r.id, r]));
+  for (const r of recipes) byId.set(r.id, summary(r));
+  await db().set("recipes:index", [...byId.values()].sort((a, b) => b.batch.localeCompare(a.batch) || a.title.localeCompare(b.title)));
+}
+
+// ---- Weekly dinner plan
+export const getMealPlan = async (uid: string, weekStart: string): Promise<MealPlan> =>
+  (await db().get<MealPlan>(`mealplan:${uid}:${weekStart}`)) ?? { weekStart, days: {}, have: [], extras: [], shareToken: null };
+export const saveMealPlan = (uid: string, p: MealPlan) => db().set(`mealplan:${uid}:${p.weekStart}`, p);
+export const getShare = (token: string) => db().get<{ uid: string; weekStart: string }>(`groceryshare:${token}`);
+export const saveShare = (token: string, v: { uid: string; weekStart: string }) => db().set(`groceryshare:${token}`, v);

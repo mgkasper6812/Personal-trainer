@@ -58,3 +58,31 @@ export const Program = z.object({
 export type Program = z.infer<typeof Program>;
 export type Routine = Program["routines"][number];
 export type RoutineExercise = Routine["exercises"][number];
+
+export const AISLES = ["Produce", "Meat & Seafood", "Dairy & Eggs", "Bakery & Bread", "Pantry & Grains", "Canned & Jarred", "Spices & Oils", "Frozen", "Other"] as const;
+
+export const RecipeBatch = z.object({
+  recipes: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string().describe("One appetizing sentence"),
+      timeMin: z.number().describe("Total minutes, prep + cook"),
+      tags: z.array(z.string()).describe("2–4 tags, e.g. sheet-pan, slow cooker, grill, 30-min, tacos, kid-friendly"),
+      ingredients: z.array(
+        z.object({
+          item: z.string().describe("Grocery item as you'd find it in the store, e.g. 'boneless skinless chicken thighs'"),
+          qty: z.number().nullable(),
+          unit: z.string().describe("US units: lb, oz, cup, tbsp, tsp, each, can, bunch… ('' if none)"),
+          aisle: z.enum(AISLES),
+          note: z.string().nullable().describe("prep note, e.g. 'diced'"),
+        }),
+      ),
+      steps: z.array(z.string()).describe("Short numbered steps, 4–8"),
+      nutrition: z.object({ calories: z.number(), proteinG: z.number(), carbsG: z.number(), fiberG: z.number(), fatG: z.number() })
+        .describe("Estimated per serving of the main recipe (without family add-ons)"),
+      plateTip: z.string().describe("How Mike builds his plate for blood sugar, e.g. 'half veg, 6 oz chicken, ½ cup rice max'"),
+      familyTip: z.string().nullable().describe("Optional add-on for the rest of the family, e.g. 'warm tortillas and rice for the kids'"),
+    }),
+  ),
+});
+export type RecipeBatch = z.infer<typeof RecipeBatch>;

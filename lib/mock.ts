@@ -84,3 +84,37 @@ export function program(role: Role): Program {
     rules: ["Weigh in each morning.", "Walk after dinner."],
   };
 }
+
+// ---- Recipes (dev only)
+import type { RecipeBatch } from "./schemas";
+export function recipes(existing: string[]): RecipeBatch["recipes"] {
+  const n = existing.length;
+  const base: RecipeBatch["recipes"] = [
+    { title: "Sheet-Pan Chicken Fajitas", description: "Smoky chicken and peppers roasted on one pan.", timeMin: 35, tags: ["sheet-pan", "30-min"],
+      ingredients: [
+        { item: "boneless skinless chicken breast", qty: 1.5, unit: "lb", aisle: "Meat & Seafood", note: "sliced" },
+        { item: "bell peppers", qty: 3, unit: "each", aisle: "Produce", note: "sliced" },
+        { item: "yellow onion", qty: 1, unit: "each", aisle: "Produce", note: null },
+        { item: "olive oil", qty: 2, unit: "tbsp", aisle: "Spices & Oils", note: null },
+        { item: "fajita seasoning", qty: 2, unit: "tbsp", aisle: "Spices & Oils", note: null },
+        { item: "plain Greek yogurt", qty: 1, unit: "cup", aisle: "Dairy & Eggs", note: "for topping" },
+        { item: "flour tortillas", qty: 8, unit: "each", aisle: "Bakery & Bread", note: "for the kids" },
+      ],
+      steps: ["Heat oven to 425°F.", "Toss chicken, peppers and onion with oil and seasoning.", "Roast 20–25 min.", "Serve with yogurt and tortillas."],
+      nutrition: { calories: 360, proteinG: 42, carbsG: 14, fiberG: 4, fatG: 12 },
+      plateTip: "Skip the tortilla or have one; fill up on peppers and chicken with yogurt.", familyTip: "Warm tortillas and cheese for the kids." },
+    { title: "Turkey Taco Lettuce Bowls", description: "Seasoned turkey over crunchy lettuce with beans and salsa.", timeMin: 25, tags: ["skillet", "30-min"],
+      ingredients: [
+        { item: "ground turkey 93% lean", qty: 1.5, unit: "lb", aisle: "Meat & Seafood", note: null },
+        { item: "black beans", qty: 1, unit: "can", aisle: "Canned & Jarred", note: "rinsed" },
+        { item: "romaine lettuce", qty: 2, unit: "head", aisle: "Produce", note: null },
+        { item: "salsa", qty: 1, unit: "jar", aisle: "Canned & Jarred", note: null },
+        { item: "yellow onion", qty: 1, unit: "each", aisle: "Produce", note: "diced" },
+        { item: "olive oil", qty: 1, unit: "tbsp", aisle: "Spices & Oils", note: null },
+      ],
+      steps: ["Brown turkey with onion.", "Add beans and seasoning.", "Serve over lettuce with salsa."],
+      nutrition: { calories: 390, proteinG: 38, carbsG: 20, fiberG: 8, fatG: 16 },
+      plateTip: "Big bed of lettuce, 1/2 cup beans, skip the chips.", familyTip: "Taco shells and shredded cheese on the side." },
+  ];
+  return base.map((r) => ({ ...r, title: n ? `${r.title} ${n + 1}` : r.title }));
+}

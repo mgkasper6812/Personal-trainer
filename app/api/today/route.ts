@@ -1,5 +1,5 @@
 import { listUsers, requireUser, resolveTarget } from "@/lib/auth";
-import { getAlerts, getCheckIn, getEvening, getProfile, getProgram, getYesterdayCheckIn, listWorkouts } from "@/lib/data";
+import { getAlerts, getMealPlan, getRecipe, getCheckIn, getEvening, getProfile, getProgram, getYesterdayCheckIn, listWorkouts } from "@/lib/data";
 import { addDays, daysBetween, isDate, mondayOf, weekdayName } from "@/lib/dates";
 import { bad, handle, ok } from "@/lib/http";
 import { adjustRoutine, evaluate } from "@/lib/rules";
@@ -55,7 +55,17 @@ export const GET = handle(async (req) => {
     family = users.filter((u) => u.id !== me.id).map((u) => ({ id: u.id, name: u.name, alerts: alerts.filter((a) => a.athleteId === u.id && !a.seen).length }));
   }
 
+  // Tonight's planned dinner (the user's own meal plan)
+  let dinner: { id: string; title: string; timeMin: number; plateTip: string } | null = null;
+  if (profile?.kind === "adult") {
+    const plan = await getMealPlan(target.id, monday);
+    const rid = plan.days[date];
+    const rec = rid ? await getRecipe(rid) : null;
+    if (rec) dinner = { id: rec.id, title: rec.title, timeMin: rec.timeMin, plateTip: rec.plateTip };
+  }
+
   return ok({
+    dinner,
     me: { id: me.id, name: me.name, role: me.role },
     family,
     weekStats,

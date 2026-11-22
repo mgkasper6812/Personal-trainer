@@ -12,6 +12,7 @@ import TonightCard from "./TonightCard";
 import { Chips, Field, Scale, Segmented, Stepper } from "./ui";
 
 type TodayRes = {
+  dinner: { id: string; title: string; timeMin: number; plateTip: string } | null;
   user: { id: string; name: string; role: "parent" | "athlete"; self: boolean };
   me: { id: string; name: string; role: "parent" | "athlete" };
   family: { id: string; name: string; alerts: number }[];
@@ -101,6 +102,7 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
               <div className="side-stat"><b className="display">{d.weekStats.eveningsOnPlan}/7</b><span>evenings on plan</span></div>
             )}
           </div>
+          {self && d.me.role === "parent" && <Link href="/progress" className="small" style={{ display: "block", textAlign: "right", marginTop: 8 }}>See progress ›</Link>}
           <div className="day-dots">
             {d.weekStrip.map((x) => (
               <button key={x.date} onClick={() => setDate(x.date)} className={`${x.date === date ? "sel" : ""} ${x.done ? "done" : x.routine ? "train" : ""}`}
@@ -126,7 +128,7 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
         <PlanCard d={d} date={date} self={self} />
 
         {d.tonight && (
-          <TonightCard collapsible tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
+          <TonightCard collapsible dinner={d.dinner} tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
             plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
         )}
 

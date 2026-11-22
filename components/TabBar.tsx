@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { localDate } from "@/lib/client";
 import type { Routine } from "@/lib/schemas";
 import { fmtClock, loadActive, startWorkout } from "@/lib/workout-client";
-import { IconChart, IconHome, IconPlus, IconTrain, IconUser } from "./icons";
+import { IconChart, IconFork, IconHome, IconPlus, IconTrain, IconUser } from "./icons";
 
 /** Center Start: resume a workout in progress, else start today's routine, else an empty workout. */
 export async function startToday() {
@@ -19,7 +19,7 @@ export async function startToday() {
   return startWorkout(null, date);
 }
 
-export default function TabBar({ role: _role }: { role: "parent" | "athlete" }) {
+export default function TabBar({ role }: { role: "parent" | "athlete" }) {
   const path = usePathname();
   const [active, setActive] = useState<{ name: string; startedAt: string } | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -43,8 +43,10 @@ export default function TabBar({ role: _role }: { role: "parent" | "athlete" }) 
         <Link href="/today" className={on(["/today"])}><IconHome />Home</Link>
         <Link href="/routines" className={on(["/routines", "/exercise"])}><IconTrain />Train</Link>
         <button className="fab" aria-label={active ? "Resume workout" : "Start today's workout"} onClick={startToday}><IconPlus size={28} /></button>
-        <Link href="/progress" className={on(["/progress", "/history"])}><IconChart />Progress</Link>
-        <Link href="/me" className={on(["/me", "/family", "/settings"])}><IconUser />Me</Link>
+        {role === "parent"
+          ? <Link href="/meals" className={on(["/meals"])}><IconFork />Meals</Link>
+          : <Link href="/progress" className={on(["/progress", "/history"])}><IconChart />Progress</Link>}
+        <Link href="/me" className={on(role === "parent" ? ["/me", "/family", "/settings", "/progress", "/history"] : ["/me", "/family", "/settings"])}><IconUser />Me</Link>
       </nav>
     </>
   );

@@ -3,10 +3,10 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { db } from "./db";
 import { EXERCISE_BY_ID } from "./exercises";
-import { Program } from "./schemas";
-import { coachSystem, programRequest } from "./prompts";
+import { Program, RecipeBatch } from "./schemas";
+import { RECIPE_SYSTEM, coachSystem, programRequest, recipeRequest } from "./prompts";
 import * as mock from "./mock";
-import type { Profile, Role } from "./types";
+import type { HealthBio, Profile, Role } from "./types";
 
 export const MODEL = process.env.COACH_MODEL ?? "claude-opus-5-5";
 
@@ -93,13 +93,13 @@ async function ask<S extends z.ZodType>(
 // ---------------- Program ----------------
 
 /** Ask the coach for a program, then keep only valid exercises and a full 7-day schedule. */
-export async function generateProgram(role: Role, name: string, profile: Profile, startDate: string): Promise<Program> {
+export async function generateProgram(role: Role, name: string, profile: Profile, startDate: string, bio: HealthBio | null = null): Promise<Program> {
   const raw = mockMode()
     ? mock.program(role)
     : (
         await ask(Program, {
           system: coachSystem(role),
-          messages: [{ role: "user", content: programRequest(role, name, profile, startDate) }],
+          messages: [{ role: "user", content: programRequest(role, name, profile, startDate, bio) }],
           effort: "high",
           maxTokens: 32000,
         })
@@ -117,4 +117,20 @@ export function cleanProgram(p: Program): Program {
     return { dayOfWeek: d, routineKey: s?.routineKey && keys.has(s.routineKey) ? s.routineKey : null, note: s?.note ?? null };
   });
   return { ...p, routines, schedule };
+}
+
+// ---------------- Recipes ----------------
+
+export async function generateRecipes(input: {
+  count: number; bio: HealthBio | null; profile: Profile | null; existing: string[]; liked: string[]; disliked: string[];
+}): Promise<RecipeBatch["recipes"]> {
+  if (mockMode()) return mock.recipes(input.existing);
+  const { data } = await ask(RecipeBatch, {
+    system: RECIPE_SYSTEM,
+    messages: [{ role: "user", content: recipeRequest(input.count, input.bio, input.profile, input.existing, input.liked, input.disliked) }],
+    effort: "medium",
+    maxTokens: 32000,
+  });
+  const seen = new Set(input.existing.map((t) => t.toLowerCase()));
+  return data.recipes.filter((r) => !seen.has(r.title.toLowerCase()));
 }

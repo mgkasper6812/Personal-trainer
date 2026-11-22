@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { normalizeEvening } from "@/lib/evening";
 import type { EveningLog } from "@/lib/types";
@@ -11,7 +12,8 @@ const t12 = (t: string | null) => {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 };
 
-export default function TonightCard({ tvTime, kitchenCloses, swaps, plan, evening, onLog, collapsible = false }: {
+export default function TonightCard({ tvTime, kitchenCloses, swaps, plan, evening, onLog, collapsible = false, dinner = null }: {
+  dinner?: { id: string; title: string; timeMin: number; plateTip: string } | null;
   tvTime: string | null; kitchenCloses: string | null; swaps: string[]; plan: unknown;
   evening?: EveningLog | null; onLog?: (v: EveningLog) => void; collapsible?: boolean;
 }) {
@@ -24,6 +26,15 @@ export default function TonightCard({ tvTime, kitchenCloses, swaps, plan, evenin
         <h2 className="row" style={{ margin: 0, gap: 8 }}><IconMoon size={20} />Tonight</h2>
         {collapsible && <button className="link small" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Hide plan" : "Show plan ›"}</button>}
       </div>
+      {dinner !== undefined && collapsible && (
+        dinner ? (
+          <Link href={`/meals/${dinner.id}`} className="dinner-row">
+            <span className="eyebrow">Dinner · {dinner.timeMin} min</span>
+            <b className="display">{dinner.title}</b>
+            <span className="small muted">{dinner.plateTip}</span>
+          </Link>
+        ) : onLog ? <Link href="/meals" className="dinner-row empty"><span className="small">No dinner planned — pick one ›</span></Link> : null
+      )}
       {(tvTime || kitchenCloses) && (
         <div className="tiles" style={{ marginTop: 12 }}>
           {tvTime && <div className="tile"><span>TV</span><b className="display">{t12(tvTime)}</b></div>}
