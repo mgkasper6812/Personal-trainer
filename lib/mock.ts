@@ -141,3 +141,14 @@ export function screenshot(today: string) {
   return { found: true, source: "Apple Fitness" as const, activity: "Outdoor Walk", date: today, startTime: "18:40", durationMin: 42, distanceMi: 2.1,
     activeCalories: 210, totalCalories: 280, avgHR: 112, maxHR: 131, elevationFt: 45, avgPace: "20:00 /mi", zoneMinutes: [{ zone: 2, minutes: 30 }] };
 }
+
+export function food(text: string, photo: boolean) {
+  if (photo && /label/i.test(text)) return { kind: "label" as const, servingSize: "2/3 cup (55g)", items: [{ label: "Granola", calories: 230, proteinG: 6, carbsG: 34, fiberG: 4, fatG: 8, assumed: false }] };
+  if (photo) return { kind: "meal" as const, servingSize: "", items: [
+    { label: "Grilled chicken (~6 oz)", calories: 280, proteinG: 52, carbsG: 0, fiberG: 0, fatG: 6, assumed: true },
+    { label: "Brown rice (~1 cup)", calories: 220, proteinG: 5, carbsG: 46, fiberG: 4, fatG: 2, assumed: true },
+    { label: "Broccoli (~1 cup)", calories: 55, proteinG: 4, carbsG: 11, fiberG: 5, fatG: 1, assumed: true } ] };
+  return { kind: "meal" as const, servingSize: "", items: text.split(/,| and /i).map((t) => t.trim()).filter(Boolean).map((label) => ({
+    label, calories: /egg/i.test(label) ? 140 : 120, proteinG: /egg/i.test(label) ? 12 : /shake/i.test(label) ? 30 : 4, carbsG: /toast/i.test(label) ? 15 : 2,
+    fiberG: /toast/i.test(label) ? 2 : 0, fatG: /egg/i.test(label) ? 10 : 2, assumed: !/\d/.test(label) })) };
+}

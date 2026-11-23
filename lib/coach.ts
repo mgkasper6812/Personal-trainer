@@ -3,7 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { db } from "./db";
 import { EXERCISE_BY_ID } from "./exercises";
-import { ExerciseGuide, Program, ProgramWire, ProteinEstimate, RecipeBatch, ScreenshotWorkout, programFromWire } from "./schemas";
+import { ExerciseGuide, FoodEstimate, Program, ProgramWire, ProteinEstimate, RecipeBatch, ScreenshotWorkout, programFromWire } from "./schemas";
 import { GUIDE_SYSTEM, RECIPE_SYSTEM, coachSystem, programRequest, recipeRequest } from "./prompts";
 import * as mock from "./mock";
 import type { HealthBio, Profile, Role } from "./types";
@@ -191,4 +191,23 @@ like "Today" or "Yesterday" against it.`,
     model: FAST_MODEL,
   });
   return data;
+}
+
+// ---------------- Food from words or photos ----------------
+
+const FOOD_SYSTEM = `Estimate nutrition (calories, protein, carbs, fiber, fat) for food a person describes or photographs (US portions).
+- Words or a plate photo: kind "meal". Split into separate items; estimate portions from the description or the photo (plate size, utensils,
+  packaging). Use known label values for brand-name products and standard USDA values otherwise. If an amount isn't given or you're judging
+  from a photo, set assumed to true.
+- A Nutrition Facts label: kind "label". Copy the per-serving numbers exactly as printed into ONE item labeled with the product name if visible,
+  and copy the serving size into servingSize.
+- Nothing edible: kind "none" with no items. Round to whole numbers.`;
+
+export async function estimateFood(input: { text?: string; image?: { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string } }): Promise<FoodEstimate> {
+  if (mockMode()) return mock.food(input.text ?? "", !!input.image);
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  if (input.image) content.push({ type: "image", source: { type: "base64", media_type: input.image.mediaType, data: input.image.data } });
+  content.push({ type: "text", text: input.text?.trim() ? input.text.trim() : "What's in this photo? Estimate its nutrition." });
+  const { data } = await ask(FoodEstimate, { system: FOOD_SYSTEM, messages: [{ role: "user", content }], effort: "low", maxTokens: 3000, model: FAST_MODEL });
+  return { ...data, items: data.items.filter((i) => i.calories >= 0 && i.calories <= 3000).slice(0, 15) };
 }

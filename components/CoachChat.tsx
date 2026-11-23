@@ -6,7 +6,7 @@ import { IconCheck, IconImage } from "./icons";
 import ScreenshotImport, { toDataUrl } from "./ScreenshotImport";
 
 const SUGGEST = {
-  parent: ["How am I doing this week?", "Make Thursday Zone 2 cardio", "I'm sore — adjust today", "What should I eat tonight?", "Log a 30 g protein shake"],
+  parent: ["How am I doing this week?", "Make Thursday Zone 2 cardio", "I'm sore — adjust today", "What should I eat tonight?", "Log a protein shake for breakfast"],
   athlete: ["What should I focus on today?", "My arm feels off", "Swap today's lift — no gym access", "How do I raise my bat speed?"],
 };
 

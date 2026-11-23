@@ -55,11 +55,14 @@ function tools(role: User["role"]): Anthropic.Beta.BetaTool[] {
   ];
   if (role === "parent") t.push(
     {
-      name: "log_protein",
-      description: "Log protein the user ate today. Estimate grams per item if they didn't say.",
+      name: "log_food",
+      description: "Log food the user ate today with estimated nutrition per item (estimate if they didn't say).",
       strict: true,
-      input_schema: { type: "object", additionalProperties: false, required: ["items"], properties: {
-        items: { type: "array", items: { type: "object", additionalProperties: false, required: ["label", "grams"], properties: { label: { type: "string" }, grams: { type: "integer" } } } },
+      input_schema: { type: "object", additionalProperties: false, required: ["meal", "items"], properties: {
+        meal: { type: "string", enum: ["breakfast", "lunch", "dinner", "snack"] },
+        items: { type: "array", items: { type: "object", additionalProperties: false, required: ["label", "calories", "protein_g", "carbs_g", "fiber_g", "fat_g"], properties: {
+          label: { type: "string" }, calories: { type: "integer" }, protein_g: { type: "integer" }, carbs_g: { type: "integer" }, fiber_g: { type: "integer" }, fat_g: { type: "integer" },
+        } } },
       } },
     },
     {
@@ -114,7 +117,11 @@ async function context(user: User, date: string) {
     }));
     ctx.healthBio = bio ? { ...bio, updatedAt: undefined } : null;
     ctx.nutrition = p?.nutrition ?? null;
-    ctx.proteinToday = { total: protein.reduce((a, e) => a + e.grams, 0), target: p?.nutrition?.proteinG ?? null, items: protein.map((e) => `${e.label} ${e.grams}g`) };
+    ctx.foodToday = {
+      totals: { calories: protein.reduce((a, e) => a + (e.calories ?? 0), 0), protein: protein.reduce((a, e) => a + e.grams, 0), carbs: protein.reduce((a, e) => a + (e.carbsG ?? 0), 0), fiber: protein.reduce((a, e) => a + (e.fiberG ?? 0), 0) },
+      targets: { calories: p?.nutrition?.calories ?? null, protein: p?.nutrition?.proteinG ?? null },
+      items: protein.map((e) => `${e.meal ?? "?"}: ${e.label} (${e.calories ?? "?"} cal, ${e.grams}g P, ${e.carbsG ?? "?"}g C)`),
+    };
     ctx.dinnersThisWeek = dinners;
     ctx.recipeLibrary = (await listRecipes()).slice(0, 40).map((r) => r.title);
     ctx.recentWeights = weights.slice(-10);
@@ -167,14 +174,16 @@ async function runTool(user: User, date: string, name: string, input: Record<str
     if (h && !list.includes(h)) await saveCustomHabits(user.id, [...list, h].slice(0, 12));
     return { result: `Added habit "${h}".`, action: `New habit: ${h}` };
   }
-  if (name === "log_protein" && user.role === "parent") {
+  if (name === "log_food" && user.role === "parent") {
+    const meal = (["breakfast", "lunch", "dinner", "snack"] as const).find((m) => m === input.meal) ?? "snack";
+    const num = (v: unknown, max: number) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x >= 0 && x <= max ? x : 0; };
     const items = (Array.isArray(input.items) ? input.items : []).slice(0, 15)
-      .map((x: { label?: unknown; grams?: unknown }) => ({ label: String(x.label ?? "").slice(0, 60), grams: Math.round(Number(x.grams)) }))
-      .filter((x) => x.label && x.grams > 0 && x.grams <= 300);
+      .map((x: Record<string, unknown>) => ({ label: String(x.label ?? "").slice(0, 60), grams: num(x.protein_g, 300), calories: num(x.calories, 3000), carbsG: num(x.carbs_g, 500), fiberG: num(x.fiber_g, 150), fatG: num(x.fat_g, 300) }))
+      .filter((x) => x.label);
     const log = await getProteinLog(user.id, date);
-    await saveProteinLog(user.id, date, [...log, ...items.map((x) => ({ id: crypto.randomUUID().slice(0, 8), ...x, at: new Date().toISOString() }))].slice(-40));
-    const g = items.reduce((a, x) => a + x.grams, 0);
-    return { result: `Logged ${g} g (${items.map((x) => `${x.label} ${x.grams}g`).join(", ")}).`, action: `+${g} g protein` };
+    await saveProteinLog(user.id, date, [...log, ...items.map((x) => ({ id: crypto.randomUUID().slice(0, 8), ...x, meal, at: new Date().toISOString() }))].slice(-60));
+    const cal = items.reduce((a, x) => a + x.calories, 0), g = items.reduce((a, x) => a + x.grams, 0);
+    return { result: `Logged ${meal}: ${items.map((x) => x.label).join(", ")} — ${cal} cal, ${g} g protein.`, action: `${meal}: +${cal} cal · ${g} g protein` };
   }
   if (name === "plan_dinner" && user.role === "parent") {
     const monday = mondayOf(date);

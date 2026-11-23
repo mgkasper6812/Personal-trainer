@@ -135,3 +135,21 @@ export async function startWorkout(routine: Routine | null, date: string, deload
   saveActive(w);
   window.location.href = "/workout";
 }
+
+/** Center Start: resume a workout in progress, else start today's routine, else an empty workout. */
+export async function startToday() {
+  const date = localDateStr();
+  if (loadActive()) { window.location.href = "/workout"; return; }
+  try {
+    const r = await fetch(`/api/today?date=${date}`);
+    const d = (await r.json()) as { routine: Routine | null; workoutsToday: unknown[]; program: { weekInfo: { deload: boolean } | null } | null };
+    if (d.routine && !d.workoutsToday?.length) return startWorkout(d.routine, date, !!d.program?.weekInfo?.deload);
+  } catch {}
+  return startWorkout(null, date);
+}
+
+
+function localDateStr(d = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

@@ -200,3 +200,15 @@ export const ScreenshotWorkout = z.object({
   zoneMinutes: z.array(z.object({ zone: z.number(), minutes: z.number() })).describe("Heart-rate zone minutes if shown"),
 });
 export type ScreenshotWorkout = z.infer<typeof ScreenshotWorkout>;
+
+// Food read from words, a plate photo, or a nutrition label (per item; for a label, per one serving).
+export const FoodEstimate = z.object({
+  kind: z.enum(["meal", "label", "none"]).describe("meal = food described or pictured; label = a Nutrition Facts panel; none = no food"),
+  servingSize: z.string().describe("For a label: the serving size as printed (e.g. '2/3 cup (55g)'); else ''"),
+  items: z.array(z.object({
+    label: z.string().describe("Short name with amount, e.g. '2 large eggs', 'Grilled chicken (~6 oz)'"),
+    calories: z.number(), proteinG: z.number(), carbsG: z.number(), fiberG: z.number(), fatG: z.number(),
+    assumed: z.boolean().describe("True if the portion size was assumed or estimated from a photo"),
+  })),
+});
+export type FoodEstimate = z.infer<typeof FoodEstimate>;

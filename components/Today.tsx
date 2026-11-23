@@ -9,7 +9,7 @@ import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { startWorkout } from "@/lib/workout-client";
 import { IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
-import ProteinCard from "./ProteinCard";
+import FoodCard from "./FoodCard";
 import { ExerciseSheet } from "./ExerciseInfo";
 import { rxParts } from "@/lib/rx";
 import TonightCard from "./TonightCard";
@@ -58,6 +58,11 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
     catch (e) { setErr((e as Error).message); }
   }, [date, viewUser]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("checkin") === "1" && !viewUser) { setSheet(true); window.history.replaceState(null, "", "/today"); }
+    if (window.location.hash === "#habits") setTimeout(() => document.getElementById("habits")?.scrollIntoView({ behavior: "smooth" }), 400);
+  }, [viewUser]);
 
   const isToday = date === localDate();
   const self = d?.user.self ?? !viewUser;
@@ -136,12 +141,12 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
 
         <PlanCard d={d} date={date} self={self} />
 
+        {adult && <FoodCard date={date} self={self} viewUser={viewUser} />}
+
         {d.tonight && (
           <TonightCard collapsible dinner={d.dinner} tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
             plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
         )}
-
-        {adult && <ProteinCard date={date} self={self} viewUser={viewUser} />}
 
         <Habits d={d} date={date} self={self} onChange={(hw) => setD((x) => (x ? { ...x, habitWeek: hw } : x))} reload={load} />
 
@@ -180,7 +185,7 @@ function Habits({ d, date, self, onChange, reload }: { d: TodayRes; date: string
   }
   if (!list.length && !self) return null;
   return (
-    <section className="card">
+    <section className="card" id="habits">
       <div className="row between">
         <span className="eyebrow">Daily habits</span>
         <span className="row" style={{ gap: 10 }}>

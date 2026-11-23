@@ -2,22 +2,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { localDate } from "@/lib/client";
-import type { Routine } from "@/lib/schemas";
-import { fmtClock, loadActive, startWorkout } from "@/lib/workout-client";
+import { fmtClock, loadActive } from "@/lib/workout-client";
 import { IconChart, IconChat, IconFork, IconHome, IconPlus, IconTrain } from "./icons";
-
-/** Center Start: resume a workout in progress, else start today's routine, else an empty workout. */
-export async function startToday() {
-  if (loadActive()) { window.location.href = "/workout"; return; }
-  const date = localDate();
-  try {
-    const r = await fetch(`/api/today?date=${date}`);
-    const d = (await r.json()) as { routine: Routine | null; workoutsToday: unknown[]; program: { weekInfo: { deload: boolean } | null } | null };
-    if (d.routine && !d.workoutsToday?.length) return startWorkout(d.routine, date, !!d.program?.weekInfo?.deload);
-  } catch {}
-  return startWorkout(null, date);
-}
+import LogSheet, { openLog } from "./LogSheet";
 
 export default function TabBar({ role }: { role: "parent" | "athlete" }) {
   const path = usePathname();
@@ -42,12 +29,13 @@ export default function TabBar({ role }: { role: "parent" | "athlete" }) {
       <nav className="tabbar" aria-label="Main">
         <Link href="/today" className={on(["/today"])}><IconHome />Home</Link>
         <Link href="/routines" className={on(["/routines", "/exercise"])}><IconTrain />Train</Link>
-        <button className="fab" aria-label={active ? "Resume workout" : "Start today's workout"} onClick={startToday}><IconPlus size={28} /></button>
+        <button className="fab" aria-label="Log food, weight, workout and more" onClick={() => openLog()}><IconPlus size={28} /></button>
         {role === "parent"
           ? <Link href="/meals" className={on(["/meals"])}><IconFork />Meals</Link>
           : <Link href="/progress" className={on(["/progress", "/history"])}><IconChart />Progress</Link>}
         <Link href="/coach" className={on(["/coach"])}><IconChat />Coach</Link>
       </nav>
+      <LogSheet role={role} />
     </>
   );
 }
