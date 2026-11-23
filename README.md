@@ -23,6 +23,17 @@ Stack: Next.js on Vercel · Upstash Redis · Claude API (`claude-opus-5-5`, with
 4. Deploy. Open the site on your iPhone in Safari, create the parent account, then **Family → Add a family member** for Maicie.
 5. On each iPhone: Share → **Add to Home Screen**.
 
+## Push notifications (morning plan, evening nudge)
+
+On iPhone, notifications work only from the Home Screen app (iOS 16.4+). Each person turns them on under **Me → Notifications**.
+They're sent by a GitHub Actions schedule (`.github/workflows/notify.yml`) that pings `/api/cron/notify` every 15 minutes
+(Vercel Hobby can only run jobs once a day). One-time setup in GitHub → repo **Settings → Secrets and variables → Actions**:
+
+- `APP_URL` — your app's address, e.g. `https://your-app.vercel.app`
+- `CRON_SECRET` — the same value as `CRON_SECRET` in Vercel
+
+GitHub only runs scheduled workflows from the repository's default branch.
+
 ## Run locally
 
 ```bash

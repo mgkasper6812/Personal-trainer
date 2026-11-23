@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { IconChart, IconChevron, IconHeart, IconUser, IconUsers, IconWatch } from "./icons";
 import { SHORTCUT_NAME } from "./WorkoutDetail";
+import NotificationSettings from "./NotificationSettings";
 
 export default function Settings({ name, role }: { name: string; role: "parent" | "athlete" }) {
   const [token, setToken] = useState("");
@@ -31,6 +32,8 @@ export default function Settings({ name, role }: { name: string; role: "parent" 
         <Link href="/onboarding" className="menu-row"><IconUser /><span>Edit my setup answers</span><IconChevron size={18} /></Link>
         <a href="#watch" className="menu-row"><IconWatch /><span>Apple Watch sync</span><IconChevron size={18} /></a>
       </div>
+
+      <NotificationSettings role={role} />
 
       <div className="card" id="watch">
         <h2>Apple Watch sync</h2>
