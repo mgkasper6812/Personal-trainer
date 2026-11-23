@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useEffect, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import type { WorkoutSummary } from "@/lib/types";
@@ -74,6 +75,7 @@ export default function Progress({ viewUser }: { viewUser: string | null }) {
 
   return (
     <main>
+      {r.people.length > 0 && <BackButton fallback="/today" />}
       <div className="row between" style={{ marginBottom: 14 }}>
         <h1 style={{ margin: 0 }}>Progress</h1>
         {r.people.length > 1 && (

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import BackButton from "./BackButton";
 import { api } from "@/lib/client";
 import type { ExerciseStats } from "@/lib/data";
 import { getExercise } from "@/lib/exercises";
@@ -33,6 +34,7 @@ export default function ExerciseDetail({ id, viewUser }: { id: string; viewUser:
   const best = pts.length ? (metric?.lower ? Math.min(...pts.map((p) => p.y)) : Math.max(...pts.map((p) => p.y))) : null;
   return (
     <main>
+      <BackButton fallback="/routines" />
       <h1>{e.name}</h1>
       <p className="small muted" style={{ marginTop: -6 }}>{e.muscles.join(", ")} · {e.equipment.join(", ")}</p>
       <DemoVideo id={id} />

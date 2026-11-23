@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import BackButton from "./BackButton";
 import { api, localDate } from "@/lib/client";
 import type { Region } from "@/lib/exercises";
 import type { AdultProfile, AthleteProfile, Profile } from "@/lib/types";
@@ -227,6 +228,7 @@ export default function Setup({ role, initial }: { role: "parent" | "athlete"; i
 
   return (
     <main>
+      {initial && <BackButton fallback="/me" label="Cancel" />}
       <div className="row between small muted"><span>Setup</span><span>{i + 1} of {steps.length}</span></div>
       <div className="wizard-progress"><div style={{ width: `${((i + 1) / steps.length) * 100}%` }} /></div>
       <h1>{step.title}</h1>

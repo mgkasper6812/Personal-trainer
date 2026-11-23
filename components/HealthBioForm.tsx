@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import BackButton from "./BackButton";
 import { api, localDate } from "@/lib/client";
 import type { HealthBio, LabResult, Medication } from "@/lib/types";
 import { IconClose } from "./icons";
@@ -63,6 +64,7 @@ export default function HealthBioForm() {
 
   return (
     <main>
+      <BackButton fallback="/me" />
       <h1 style={{ marginBottom: 4 }}>Health bio</h1>
       <p className="small muted" style={{ marginTop: 0 }}>Private to you. Your coach uses it to plan dinners and workouts. Your doctor leads on medical decisions.</p>
       {draft && <p className="small why">Pre-filled from your setup answers — review and save.</p>}

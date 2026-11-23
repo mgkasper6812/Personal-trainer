@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import BackButton from "./BackButton";
 import { api, localDate } from "@/lib/client";
 import { fmtQty } from "@/lib/grocery";
 import type { Recipe } from "@/lib/types";
@@ -29,7 +30,7 @@ export default function RecipeView({ id, canPlan }: { id: string; canPlan: boole
 
   return (
     <main>
-      <a href="/meals" className="small">‹ Dinners</a>
+      <BackButton fallback="/meals" />
       <div className="row between" style={{ alignItems: "flex-start", marginTop: 8, flexWrap: "nowrap" }}>
         <h1 style={{ margin: 0, flex: 1, minWidth: 0 }}>{recipe.title}</h1>
         <button className={`fav ${recipe.favorite ? "on" : ""}`} aria-label="Favorite" aria-pressed={recipe.favorite} onClick={() => patch({ favorite: !recipe.favorite })}><IconHeart size={22} /></button>

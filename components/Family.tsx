@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import BackButton from "./BackButton";
 import { api, localDate } from "@/lib/client";
 import type { Alert, PublicUser, WorkoutSummary } from "@/lib/types";
 
@@ -25,6 +26,7 @@ export default function Family() {
 
   return (
     <main>
+      <BackButton fallback="/me" />
       <h1>Family</h1>
       {unseen.length > 0 && (
         <div className="card urgent">

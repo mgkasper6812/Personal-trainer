@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { IconChart, IconChevron, IconHeart, IconUser, IconUsers, IconWatch } from "./icons";
@@ -19,7 +20,7 @@ export default function Settings({ name, role }: { name: string; role: "parent" 
 
   return (
     <main>
-      <a href="/today" className="small">‹ Home</a>
+      <BackButton fallback="/today" />
       <div className="row" style={{ gap: 14, margin: "10px 0 18px" }}>
         <span className="avatar big-avatar">{name.slice(0, 1).toUpperCase()}</span>
         <div><h1 style={{ margin: 0 }}>{name}</h1><span className="small muted">{role === "parent" ? "Parent" : "Athlete"}</span></div>

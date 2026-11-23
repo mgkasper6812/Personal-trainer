@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import type { ExerciseStats } from "@/lib/data";
@@ -154,7 +155,8 @@ export default function Logger() {
   return (
     <main className="logger">
       <div className="logger-head">
-        <div>
+        <div style={{ minWidth: 0 }}>
+          <BackButton fallback="/today" label="Minimize" />
           <input className="title-input" value={w.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} aria-label="Workout name" />
           <div className="row small muted" style={{ gap: 14 }}>
             <span className="display">{fmtClock(elapsed)}</span><span>{doneSets.length} set{doneSets.length === 1 ? "" : "s"}</span>{volume > 0 && <span>{volume.toLocaleString()} lb</span>}

@@ -337,3 +337,6 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .attach-btn { flex: none; width: 46px; padding: 0; display: grid; place-items: center; color: var(--accent); }
 .import-card { align-self: stretch; max-width: 100%; }
 .import-thumb { width: 64px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); flex: none; }
+.back-btn { display: inline-flex; align-items: center; gap: 2px; min-height: 40px; padding: 0 10px 0 2px; margin: 0 0 6px -4px; border: 0; background: none;
+  color: var(--accent); font-weight: 600; font-size: 16px; }
+.logger-head .back-btn { min-height: 30px; margin-bottom: 0; font-size: 14px; }

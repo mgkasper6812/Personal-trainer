@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SwRegister from "@/components/SwRegister";
+import { NavTracker } from "@/components/BackButton";
 
 export const metadata: Metadata = {
   title: "Family Trainer",
@@ -25,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" />
       </head>
-      <body>{children}<SwRegister /></body>
+      <body>{children}<SwRegister /><NavTracker /></body>
     </html>
   );
 }

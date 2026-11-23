@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useEffect, useMemo, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import type { ExerciseStats, ProgramRecord } from "@/lib/data";
@@ -78,6 +79,7 @@ export default function Routines({ viewUser }: { viewUser: string | null }) {
 
   return (
     <main>
+      {viewUser && <BackButton fallback="/family" />}
       <div className="row between" style={{ marginBottom: 12 }}>
         <h1 style={{ margin: 0 }}>{viewUser ? `${r.name}'s training` : "Train"}</h1>
         {r.self && <button className="pill-btn" onClick={() => startWorkout(null, localDate())}>+ Empty workout</button>}

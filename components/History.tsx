@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import type { WorkoutSummary } from "@/lib/types";
@@ -20,6 +21,7 @@ export default function History({ viewUser }: { viewUser: string | null }) {
   const last28 = r.workouts.filter((w) => Date.now() - Date.parse(`${w.date}T12:00:00`) < 28 * 86400000).length;
   return (
     <main>
+      <BackButton fallback={viewUser ? `/progress?user=${viewUser}` : "/progress"} />
       <h1>{viewUser ? `${r.name}'s history` : "History"}</h1>
       <div className="stats" style={{ marginBottom: 14 }}>
         <div className="stat"><b>{r.workouts.length}</b>workouts</div>

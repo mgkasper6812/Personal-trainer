@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import BackButton from "./BackButton";
 import { api } from "@/lib/client";
 import type { ProgramRecord } from "@/lib/data";
 import { getExercise } from "@/lib/exercises";
@@ -31,7 +32,7 @@ export default function RoutineEditor({ routineKey }: { routineKey: string }) {
   return (
     <main>
       <div className="row between">
-        <a href="/routines">Cancel</a>
+        <BackButton fallback="/routines" label="Cancel" />
         <button className="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
       </div>
       <input className="title-input" style={{ margin: "14px 0 4px" }} value={rt.name} onChange={(e) => setRt({ ...rt, name: e.target.value })} />

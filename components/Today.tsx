@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useCallback, useEffect, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import { getExercise, type Region } from "@/lib/exercises";
@@ -71,6 +72,7 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   const dateLabel = new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   return (
     <main>
+      {viewUser && <BackButton fallback="/family" />}
       <header className="home-head">
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="eyebrow">{dateLabel}{!isToday && <> · <button className="link" onClick={() => setDate(localDate())}>Back to today</button></>}</div>

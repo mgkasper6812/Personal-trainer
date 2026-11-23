@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import BackButton from "./BackButton";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { getExercise } from "@/lib/exercises";
@@ -30,6 +31,7 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
 
   return (
     <main>
+      <BackButton fallback={viewUser ? `/history?user=${viewUser}` : "/history"} label={justFinished ? "Done" : "Back"} />
       {justFinished && <div className="card done-banner"><h2>Workout complete</h2><p className="small">{w.stats.prs.length ? `${w.stats.prs.length} new record${w.stats.prs.length > 1 ? "s" : ""}!` : "Logged. Consistency wins."}</p></div>}
       <h1 style={{ marginBottom: 2 }}>{w.name}</h1>
       <p className="small muted" style={{ marginTop: 0 }}>{new Date(w.startedAt).toLocaleString(undefined, { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
