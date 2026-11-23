@@ -38,12 +38,13 @@ async function view(uid: string, date: string) {
   const rid = plan.days[date];
   const recipe = rid ? await getRecipe(rid) : null;
   const nut = program?.program.nutrition;
+  const proteinG = nut?.proteinG ?? (profile?.kind === "adult" ? Math.round((profile.targetWeightLb ?? profile.weightLb) * 0.8) : 0);
+  const calories = nut?.calories ?? 0;
+  // Carbs and fat aren't in the plan, so derive them: protein first, ~30% of calories from fat, the rest carbs.
+  const fatG = calories ? Math.round((calories * 0.3) / 9) : 0;
+  const carbsG = calories ? Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4)) : 0;
   return {
-    targets: {
-      proteinG: nut?.proteinG ?? (profile?.kind === "adult" ? Math.round((profile.targetWeightLb ?? profile.weightLb) * 0.8) : 0),
-      calories: nut?.calories ?? 0,
-      fiberG: 30, // a common goal for blood-sugar control
-    },
+    targets: { proteinG, calories, carbsG, fatG, fiberG: 30 /* a common goal for blood-sugar control */ },
     totals: { protein: sum(entries, "grams"), calories: sum(entries, "calories"), carbs: sum(entries, "carbsG"), fiber: sum(entries, "fiberG"), fat: sum(entries, "fatG") },
     entries,
     foods: [...saved, ...DEFAULT_FOODS.filter((d) => !saved.some((f) => f.label.toLowerCase() === d.label.toLowerCase()))],

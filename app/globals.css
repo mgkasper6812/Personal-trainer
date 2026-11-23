@@ -360,8 +360,12 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 /* ---- Food card ---- */
 .macro-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
 .macro { min-width: 0; } .macro .eyebrow { font-size: 11px; }
-.macro-row .macro > .row.between .small { display: none; }
+.macro-row .macro > .row.between { flex-direction: column; align-items: flex-start; gap: 0; }
+.macro-row .macro > .row.between .small { font-size: 11px; order: 3; }
 .meals { margin-top: 14px; border-top: 1px solid var(--line); }
 .meal { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .meal-item { display: grid; grid-template-columns: 1fr auto 20px; gap: 8px; align-items: center; padding: 4px 0 0 10px; font-size: 14px; }
 .meal-item span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.remaining { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--soft); color: var(--text); line-height: 1.45; }
+.remaining b { color: var(--accent); }
+.remaining.over { background: var(--warn-bg); } .remaining.over > b { color: var(--warn); }
