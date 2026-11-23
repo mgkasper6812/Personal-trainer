@@ -136,3 +136,8 @@ export function guide(name: string) {
     breathing: "Breathe in on the way down, out on the way up.", safety: null,
   };
 }
+
+export function screenshot(today: string) {
+  return { found: true, source: "Apple Fitness" as const, activity: "Outdoor Walk", date: today, startTime: "18:40", durationMin: 42, distanceMi: 2.1,
+    activeCalories: 210, totalCalories: 280, avgHR: 112, maxHR: 131, elevationFt: 45, avgPace: "20:00 /mi", zoneMinutes: [{ zone: 2, minutes: 30 }] };
+}

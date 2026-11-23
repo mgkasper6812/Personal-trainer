@@ -334,3 +334,6 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .me-btn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; text-decoration: none;
   background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-weight: 700; font-size: 18px; }
 .home-head { align-items: center; }
+.attach-btn { flex: none; width: 46px; padding: 0; display: grid; place-items: center; color: var(--accent); }
+.import-card { align-self: stretch; max-width: 100%; }
+.import-thumb { width: 64px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); flex: none; }

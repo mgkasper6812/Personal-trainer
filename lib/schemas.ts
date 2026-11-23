@@ -181,3 +181,22 @@ export function programFromWire(w: ProgramWire): Program {
     fueling: ns(w.fueling),
   };
 }
+
+// Workout numbers read from a fitness-app screenshot (0 / '' = not shown on the screenshot).
+export const ScreenshotWorkout = z.object({
+  found: z.boolean().describe("False if the image isn't a workout summary"),
+  source: z.enum(["Apple Fitness", "Apple Health", "Strava", "Garmin", "Other"]),
+  activity: z.string().describe("e.g. 'Outdoor Walk', 'Traditional Strength Training', 'Run', 'Indoor Cycle'"),
+  date: z.string().describe("YYYY-MM-DD if visible, else ''"),
+  startTime: z.string().describe("HH:MM 24h if visible, else ''"),
+  durationMin: z.number(),
+  distanceMi: z.number().describe("Miles (convert km); 0 if none"),
+  activeCalories: z.number(),
+  totalCalories: z.number(),
+  avgHR: z.number(),
+  maxHR: z.number(),
+  elevationFt: z.number(),
+  avgPace: z.string().describe("e.g. '14:32 /mi', else ''"),
+  zoneMinutes: z.array(z.object({ zone: z.number(), minutes: z.number() })).describe("Heart-rate zone minutes if shown"),
+});
+export type ScreenshotWorkout = z.infer<typeof ScreenshotWorkout>;

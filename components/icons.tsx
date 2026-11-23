@@ -24,3 +24,4 @@ export const IconHeart = (p: P) => svg(<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2
 export const IconFork = (p: P) => svg(<><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10" /><path d="M17 21V3c-2 1.5-3 4-3 7s1 3 3 3" /></>, p);
 export const IconCart = (p: P) => svg(<><path d="M3 4h2l2.5 11h11L21 7H6.2" /><circle cx="9" cy="19.5" r="1.5" /><circle cx="17" cy="19.5" r="1.5" /></>, p);
 export const IconChat = (p: P) => svg(<path d="M4 5h16v11H9l-5 4z" />, p);
+export const IconImage = (p: P) => svg(<><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="2" /><path d="m21 16-5-5-9 9" /></>, p);

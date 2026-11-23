@@ -101,6 +101,8 @@ export const EXERCISES: Exercise[] = [
   E("brisk_walk", "Brisk Walk", "cardio", ["cardio"], ["none"], ["knee", "ankle"], ["cardio"], "Able to talk, not sing."),
   E("post_meal_walk", "Post-Meal Walk", "cardio", ["cardio"], ["none"], [], ["cardio"], "10–15 min right after eating — blunts the blood-sugar spike."),
   E("zone2_cardio", "Zone 2 Cardio", "cardio", ["cardio"], ["bike", "treadmill", "none"], ["knee"], ["cardio"], "Easy, steady pace you could hold a conversation at — about 60–70% of max heart rate (roughly 180 minus your age as the ceiling). Watch: Heart Rate Zones, stay in Zone 2."),
+  E("run", "Run", "cardio", ["cardio"], ["none"], ["knee", "ankle", "hip"], ["cardio"], "Easy pace unless the plan says otherwise; land under your hips."),
+  E("other_cardio", "Other Cardio", "cardio", ["cardio"], ["none"], [], ["cardio"], "Any other activity — tracked from your watch or app."),
   E("bike_intervals", "Bike Intervals", "cardio", ["cardio"], ["bike"], ["knee"], ["cardio"], "30 s hard / 90 s easy."),
   E("easy_bike", "Easy Bike / Jog", "cardio", ["cardio"], ["bike"], ["knee"], ["cardio", "mobility"], "Conversational pace."),
   E("mobility_flow", "Mobility Flow", "duration", ["mobility"], ["bodyweight"], [], ["mobility"], "Hips, T-spine, ankles — slow breathing."),
