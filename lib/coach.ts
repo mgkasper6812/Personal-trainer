@@ -3,7 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import { db } from "./db";
 import { EXERCISE_BY_ID } from "./exercises";
-import { ExerciseGuide, Program, ProteinEstimate, RecipeBatch } from "./schemas";
+import { ExerciseGuide, Program, ProgramWire, ProteinEstimate, RecipeBatch, programFromWire } from "./schemas";
 import { GUIDE_SYSTEM, RECIPE_SYSTEM, coachSystem, programRequest, recipeRequest } from "./prompts";
 import * as mock from "./mock";
 import type { HealthBio, Profile, Role } from "./types";
@@ -79,7 +79,10 @@ async function ask<S extends z.ZodType>(
     if (e instanceof Anthropic.RateLimitError) throw new CoachError("The coach is busy right now. Try again in a minute.");
     if (e instanceof Anthropic.AuthenticationError) throw new CoachError("The Claude API key is missing or invalid.");
     if (e instanceof Anthropic.APIConnectionError) throw new CoachError("Couldn't reach the coach. Check your connection.");
-    if (e instanceof Anthropic.APIError) throw new CoachError(`Coach error (${e.status}). Try again.`);
+    if (e instanceof Anthropic.APIError) {
+      console.error("Claude API error", e.status, e.message);
+      throw new CoachError(`Coach error (${e.status}): ${String(e.message).slice(0, 220)}`);
+    }
     if (e instanceof Anthropic.AnthropicError) throw new CoachError(`Coach error: ${e.message}`);
     throw e;
   }
@@ -100,14 +103,14 @@ async function ask<S extends z.ZodType>(
 export async function generateProgram(role: Role, name: string, profile: Profile, startDate: string, bio: HealthBio | null = null): Promise<Program> {
   const raw = mockMode()
     ? mock.program(role)
-    : (
-        await ask(Program, {
+    : programFromWire((
+        await ask(ProgramWire, {
           system: coachSystem(role),
           messages: [{ role: "user", content: programRequest(role, name, profile, startDate, bio) }],
           effort: "high",
           maxTokens: 32000,
         })
-      ).data;
+      ).data);
   return cleanProgram(raw);
 }
 

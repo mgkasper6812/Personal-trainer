@@ -109,3 +109,75 @@ export const ExerciseGuide = z.object({
   safety: z.string().nullable().describe("A safety note if relevant, else null"),
 });
 export type ExerciseGuide = z.infer<typeof ExerciseGuide>;
+
+// ---- What the coach actually returns for a program.
+// Strict structured output allows only a few nullable (union-typed) fields per request, so the wire format uses
+// 0 / "" for "not applicable" and programFromWire() converts back to the nullable Program shape the app uses.
+const TargetWire = z.object({
+  exerciseId: z.string().describe("An id from the exercise library"),
+  sets: z.number().describe("Working sets (not counting warm-ups)"),
+  warmupSets: z.number(),
+  repsMin: z.number().describe("0 if not a reps exercise"),
+  repsMax: z.number().describe("0 if not a reps exercise"),
+  seconds: z.number().describe("For timed exercises; 0 otherwise"),
+  minutes: z.number().describe("For cardio; 0 otherwise"),
+  count: z.number().describe("Swings or throws per set; 0 otherwise"),
+  weightLb: z.number().describe("Suggested starting load in lb (required for weight_reps; dumbbells per hand); 0 for bodyweight/time/cardio"),
+  targetRpe: z.number().describe("Target effort 1–10 for working sets (e.g. 7 ≈ 3 reps left); 0 if not applicable"),
+  tempo: z.string().describe("Tempo like '3-1-1' (down-pause-up) when control matters, else ''"),
+  restSec: z.number(),
+  superset: z.string().describe("Same letter = superset (e.g. 'A'); '' if none"),
+  notes: z.string().describe("One concrete coaching cue, or ''"),
+});
+export const ProgramWire = z.object({
+  title: z.string(),
+  summary: z.string().describe("2–4 sentences: what this block is for and why, tied to their profile"),
+  blockWeeks: z.number(),
+  emphasis: z.array(z.object({ area: z.string(), percent: z.number() })),
+  weeks: z.array(z.object({ week: z.number(), theme: z.string(), progression: z.string(), deload: z.boolean() })),
+  routines: z.array(z.object({
+    key: z.string().describe("short slug, e.g. 'strength-a'"),
+    name: z.string(),
+    purpose: z.string().describe("One line: why this session matters for their goals"),
+    estMinutes: z.number(),
+    exercises: z.array(TargetWire),
+  })),
+  schedule: z.array(z.object({ dayOfWeek: z.number().describe("0=Sun … 6=Sat"), routineKey: z.string().describe("'' on rest days"), note: z.string().describe("Short note or ''") }))
+    .describe("Exactly 7 entries"),
+  dailyHabits: z.array(z.string()).describe("Short daily habits, e.g. post-dinner walk"),
+  nutrition: z.object({
+    calories: z.number(), proteinG: z.number(), carbApproach: z.string(),
+    eveningPlan: z.object({
+      beforeTv: z.array(z.string()).describe("Short actions before/at TV time, each under 12 words"),
+      snackBudget: z.string().describe("e.g. '200–250 kcal, before 8:30', or ''"),
+      snackOptions: z.array(z.string()).describe("3–5 specific snack options, each under 10 words"),
+      ifThen: z.array(z.object({ craving: z.string(), instead: z.string().describe("Short replacement, under 14 words") })),
+      afterCutoff: z.string().describe("What to do if hungry after the kitchen closes, or ''"),
+      note: z.string(),
+    }),
+  }).nullable().describe("Adults only; null for athletes"),
+  fueling: z.string().describe("Athletes: performance fueling guidance; '' for adults"),
+  rules: z.array(z.string()),
+});
+type ProgramWire = z.infer<typeof ProgramWire>;
+
+const nz = (n: number) => (n ? n : null);
+const ns = (s: string) => (s.trim() ? s.trim() : null);
+export function programFromWire(w: ProgramWire): Program {
+  return {
+    ...w,
+    routines: w.routines.map((r) => ({
+      ...r,
+      exercises: r.exercises.map((e) => ({
+        ...e, repsMin: nz(e.repsMin), repsMax: nz(e.repsMax), seconds: nz(e.seconds), minutes: nz(e.minutes), count: nz(e.count),
+        weightLb: nz(e.weightLb), targetRpe: nz(e.targetRpe), tempo: ns(e.tempo), superset: ns(e.superset), notes: ns(e.notes),
+      })),
+    })),
+    schedule: w.schedule.map((s) => ({ dayOfWeek: s.dayOfWeek, routineKey: ns(s.routineKey), note: ns(s.note) })),
+    nutrition: w.nutrition ? {
+      ...w.nutrition,
+      eveningPlan: { ...w.nutrition.eveningPlan, snackBudget: ns(w.nutrition.eveningPlan.snackBudget), afterCutoff: ns(w.nutrition.eveningPlan.afterCutoff), note: ns(w.nutrition.eveningPlan.note) },
+    } : null,
+    fueling: ns(w.fueling),
+  };
+}

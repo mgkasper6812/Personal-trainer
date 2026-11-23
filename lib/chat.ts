@@ -232,7 +232,10 @@ export async function chatTurn(user: User, text: string, date: string): Promise<
         }).finalMessage();
       } catch (e) {
         if (e instanceof Anthropic.RateLimitError) throw new CoachError("The coach is busy right now. Try again in a minute.");
-        if (e instanceof Anthropic.APIError) throw new CoachError(`Coach error (${e.status}). Try again.`);
+        if (e instanceof Anthropic.APIError) {
+          console.error("Claude API error (chat)", e.status, e.message);
+          throw new CoachError(`Coach error (${e.status}): ${String(e.message).slice(0, 220)}`);
+        }
         if (e instanceof Anthropic.AnthropicError) throw new CoachError(`Coach error: ${e.message}`);
         throw e;
       }
