@@ -6,11 +6,21 @@ import { NumberInput } from "./ui";
 
 /** Shrink a photo to a JPEG data URL (max 1600px) so it uploads fast. */
 export async function toDataUrl(file: File): Promise<string> {
-  const img = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+  let src: CanvasImageSource & { width: number; height: number };
+  try {
+    src = await createImageBitmap(file);
+  } catch {
+    // Safari decodes HEIC (iPhone library photos) through <img> even where createImageBitmap can't
+    const url = URL.createObjectURL(file);
+    try {
+      src = await new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  }
+  const w = (src as HTMLImageElement).naturalWidth || src.width, h = (src as HTMLImageElement).naturalHeight || src.height;
+  const scale = Math.min(1, 1600 / Math.max(w, h));
   const c = document.createElement("canvas");
-  c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  c.getContext("2d")!.drawImage(src, 0, 0, c.width, c.height);
   return c.toDataURL("image/jpeg", 0.85);
 }
 

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import type { Meal, SavedFood } from "@/lib/data";
 import type { FoodEstimate } from "@/lib/schemas";
-import { IconCamera } from "./icons";
+import { IconCamera, IconImage } from "./icons";
 import { toDataUrl } from "./ScreenshotImport";
 import { NumberInput } from "./ui";
 
@@ -32,6 +32,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
   const [save, setSave] = useState(false);
   const [view, setView] = useState<FoodView | null>(null);
   const camRef = useRef<HTMLInputElement>(null);
+  const libRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { api<FoodView>(`/api/food?date=${date}`).then(setView, () => {}); }, [date]);
 
@@ -80,11 +81,13 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
       {!draft && (<>
         <form className="nl-form" onSubmit={(e) => { e.preventDefault(); estimate(); }}>
           <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
-          <button type="button" className="attach-btn" aria-label="Take or choose a food photo" onClick={() => camRef.current?.click()}><IconCamera size={22} /></button>
+          <input ref={libRef} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+          <button type="button" className="attach-btn" aria-label="Take a food photo" onClick={() => camRef.current?.click()}><IconCamera size={22} /></button>
+          <button type="button" className="attach-btn" aria-label="Choose a food photo from your library" onClick={() => libRef.current?.click()}><IconImage size={22} /></button>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="What did you eat? e.g. turkey sandwich and an apple" aria-label="Describe what you ate" enterKeyHint="send" />
           <button className="primary" disabled={busy || !text.trim()}>{busy ? <span className="spinner" style={{ margin: 0 }} /> : "Log"}</button>
         </form>
-        <p className="small muted" style={{ margin: "6px 0 0" }}>Snap your plate or a Nutrition Facts label, or just type it.</p>
+        <p className="small muted" style={{ margin: "6px 0 0" }}>Take a photo, pick one from your library (plate or Nutrition Facts label), or just type it.</p>
         {busy && photo && <p className="small muted"><span className="spinner" />Looking at your photo…</p>}
         {view && (
           <div className="chips scroll-x" style={{ marginTop: 12 }}>
