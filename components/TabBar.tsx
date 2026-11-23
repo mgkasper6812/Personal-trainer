@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { localDate } from "@/lib/client";
 import type { Routine } from "@/lib/schemas";
 import { fmtClock, loadActive, startWorkout } from "@/lib/workout-client";
-import { IconChart, IconFork, IconHome, IconPlus, IconTrain, IconUser } from "./icons";
+import { IconChart, IconChat, IconFork, IconHome, IconPlus, IconTrain } from "./icons";
 
 /** Center Start: resume a workout in progress, else start today's routine, else an empty workout. */
 export async function startToday() {
@@ -46,7 +46,7 @@ export default function TabBar({ role }: { role: "parent" | "athlete" }) {
         {role === "parent"
           ? <Link href="/meals" className={on(["/meals"])}><IconFork />Meals</Link>
           : <Link href="/progress" className={on(["/progress", "/history"])}><IconChart />Progress</Link>}
-        <Link href="/me" className={on(role === "parent" ? ["/me", "/family", "/settings", "/progress", "/history"] : ["/me", "/family", "/settings"])}><IconUser />Me</Link>
+        <Link href="/coach" className={on(["/coach"])}><IconChat />Coach</Link>
       </nav>
     </>
   );

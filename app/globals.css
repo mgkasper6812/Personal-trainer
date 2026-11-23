@@ -331,3 +331,6 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .ex-row:last-child { border-bottom: 0; }
 .ex-thumb { width: 64px; height: 40px; border-radius: 8px; background: var(--card2) center/cover; flex: none; }
 .ex-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.me-btn { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; text-decoration: none;
+  background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-weight: 700; font-size: 18px; }
+.home-head { align-items: center; }
