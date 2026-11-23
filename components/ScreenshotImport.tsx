@@ -5,7 +5,7 @@ import type { ScreenshotWorkout } from "@/lib/schemas";
 import { NumberInput } from "./ui";
 
 /** Shrink a photo to a JPEG data URL (max 1600px) so it uploads fast. */
-export async function toDataUrl(file: File): Promise<string> {
+export async function toDataUrl(file: File, maxSide = 1600): Promise<string> {
   let src: CanvasImageSource & { width: number; height: number };
   try {
     src = await createImageBitmap(file);
@@ -17,7 +17,7 @@ export async function toDataUrl(file: File): Promise<string> {
     } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
   }
   const w = (src as HTMLImageElement).naturalWidth || src.width, h = (src as HTMLImageElement).naturalHeight || src.height;
-  const scale = Math.min(1, 1600 / Math.max(w, h));
+  const scale = Math.min(1, maxSide / Math.max(w, h));
   const c = document.createElement("canvas");
   c.width = Math.round(w * scale); c.height = Math.round(h * scale);
   c.getContext("2d")!.drawImage(src, 0, 0, c.width, c.height);

@@ -369,3 +369,9 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .remaining { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--soft); color: var(--text); line-height: 1.45; }
 .remaining b { color: var(--accent); }
 .remaining.over { background: var(--warn-bg); } .remaining.over > b { color: var(--warn); }
+.photo-tray { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.tray-item { position: relative; width: 64px; height: 64px; }
+.tray-item img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+.tray-item button { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 50%;
+  background: var(--bg); border: 1px solid var(--line); color: var(--text); font-size: 15px; line-height: 1; }
+.tray-add { width: 64px; height: 64px; border-radius: 10px; border: 1px dashed var(--line); background: transparent; color: var(--accent); font-size: 26px; padding: 0; }

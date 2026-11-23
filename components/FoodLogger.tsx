@@ -23,7 +23,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
   const date = localDate();
   const [meal, setMeal] = useState<Meal>(initialMeal ?? mealForNow());
   const [text, setText] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [est, setEst] = useState<{ kind: FoodEstimate["kind"]; servingSize: string } | null>(null);
@@ -36,11 +36,11 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
 
   useEffect(() => { api<FoodView>(`/api/food?date=${date}`).then(setView, () => {}); }, [date]);
 
-  async function estimate(img = photo) {
-    if (!text.trim() && !img) return;
+  async function estimate() {
+    if (!text.trim() && !photos.length) return;
     setBusy(true); setErr("");
     try {
-      const r = await api<FoodEstimate>("/api/food/estimate", { body: { text, image: img ?? undefined } });
+      const r = await api<FoodEstimate>("/api/food/estimate", { body: { text, images: photos } });
       if (r.kind === "none" || !r.items.length) { setErr("Couldn't find food in that — try a clearer photo or describe it."); setBusy(false); return; }
       setEst({ kind: r.kind, servingSize: r.servingSize }); setServings(1);
       setDraft(r.items.map((i) => ({ label: i.label, grams: i.proteinG, calories: i.calories, carbsG: i.carbsG, fiberG: i.fiberG, fatG: i.fatG, assumed: i.assumed, keep: true })));
@@ -48,9 +48,18 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
     } catch (e) { setErr((e as Error).message); }
     setBusy(false);
   }
-  async function onPhoto(f: File | undefined) {
-    if (!f) return;
-    try { const d = await toDataUrl(f); setPhoto(d); await estimate(d); } catch { setErr("Couldn't open that photo."); }
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length) return;
+    setErr("");
+    const room = 4 - photos.length;
+    if (room <= 0) { setErr("Up to 4 photos at a time."); return; }
+    const picked = [...files].slice(0, room);
+    try {
+      // Several photos share one upload, so keep each a little smaller
+      const urls = await Promise.all(picked.map((f) => toDataUrl(f, photos.length + picked.length > 1 ? 1200 : 1600)));
+      setPhotos((p) => [...p, ...urls].slice(0, 4));
+      if (files.length > room) setErr("Kept the first 4 photos.");
+    } catch { setErr("Couldn't open that photo."); }
   }
   async function logItems(items: (SavedFood & { label: string })[], saveIt = false) {
     setBusy(true); setErr("");
@@ -80,15 +89,29 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
 
       {!draft && (<>
         <form className="nl-form" onSubmit={(e) => { e.preventDefault(); estimate(); }}>
-          <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
-          <input ref={libRef} type="file" accept="image/*" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+          <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { addPhotos(e.target.files); e.target.value = ""; }} />
+          <input ref={libRef} type="file" accept="image/*" multiple hidden onChange={(e) => { addPhotos(e.target.files); e.target.value = ""; }} />
           <button type="button" className="attach-btn" aria-label="Take a food photo" onClick={() => camRef.current?.click()}><IconCamera size={22} /></button>
           <button type="button" className="attach-btn" aria-label="Choose a food photo from your library" onClick={() => libRef.current?.click()}><IconImage size={22} /></button>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="What did you eat? e.g. turkey sandwich and an apple" aria-label="Describe what you ate" enterKeyHint="send" />
-          <button className="primary" disabled={busy || !text.trim()}>{busy ? <span className="spinner" style={{ margin: 0 }} /> : "Log"}</button>
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={photos.length ? "Add details (optional)" : "What did you eat? e.g. turkey sandwich and an apple"} aria-label="Describe what you ate" enterKeyHint="send" />
+          <button className="primary" disabled={busy || (!text.trim() && !photos.length)}>{busy ? <span className="spinner" style={{ margin: 0 }} /> : photos.length ? "Analyze" : "Log"}</button>
         </form>
-        <p className="small muted" style={{ margin: "6px 0 0" }}>Take a photo, pick one from your library (plate or Nutrition Facts label), or just type it.</p>
-        {busy && photo && <p className="small muted"><span className="spinner" />Looking at your photo…</p>}
+        {photos.length > 0 && (
+          <div className="photo-tray" aria-label="Photos to analyze">
+            {photos.map((ph, i) => (
+              <div key={i} className="tray-item">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={ph} alt={`Food photo ${i + 1}`} />
+                <button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos(photos.filter((_, j) => j !== i))}>×</button>
+              </div>
+            ))}
+            {photos.length < 4 && (
+              <button type="button" className="tray-add" aria-label="Add another photo" onClick={() => libRef.current?.click()}>+</button>
+            )}
+          </div>
+        )}
+        <p className="small muted" style={{ margin: "6px 0 0" }}>Take or pick up to 4 photos (plates, a Nutrition Facts label), add details if you like, or just type it.</p>
+        {busy && photos.length > 0 && <p className="small muted"><span className="spinner" />Looking at your photo{photos.length > 1 ? "s" : ""}…</p>}
         {view && (
           <div className="chips scroll-x" style={{ marginTop: 12 }}>
             {view.dinner && <button className="chip on" onClick={() => logItems([view.dinner!])}>{view.dinner.label.replace("Dinner: ", "Tonight: ")}</button>}
@@ -101,7 +124,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
         <div className="nl-draft">
           <div className="row" style={{ gap: 10, flexWrap: "nowrap", alignItems: "flex-start" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {photo && <img src={photo} alt="Your food" className="import-thumb" style={{ width: 56, height: 56 }} />}
+            {photos.slice(0, 3).map((ph, i) => <img key={i} src={ph} alt={`Your food ${i + 1}`} className="import-thumb" style={{ width: 48, height: 48 }} />)}
             <div style={{ flex: 1 }}>
               <span className="eyebrow">{est?.kind === "label" ? "From the label" : "Check the estimate"}</span>
               {est?.kind === "label" && est.servingSize && <p className="small muted" style={{ margin: "2px 0 0" }}>1 serving = {est.servingSize}</p>}
@@ -135,7 +158,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
           )}
           <div className="row" style={{ flexWrap: "nowrap", marginTop: 10 }}>
             <button className="primary" style={{ flexGrow: 1 }} onClick={confirm} disabled={busy}>Add {tot("calories")} cal · {tot("grams")} g protein</button>
-            <button onClick={() => { setDraft(null); setPhoto(null); setEst(null); }}>Back</button>
+            <button onClick={() => { setDraft(null); setEst(null); }}>Back</button>
           </div>
         </div>
       )}

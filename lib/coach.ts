@@ -203,11 +203,19 @@ const FOOD_SYSTEM = `Estimate nutrition (calories, protein, carbs, fiber, fat) f
   and copy the serving size into servingSize.
 - Nothing edible: kind "none" with no items. Round to whole numbers.`;
 
-export async function estimateFood(input: { text?: string; image?: { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string } }): Promise<FoodEstimate> {
-  if (mockMode()) return mock.food(input.text ?? "", !!input.image);
+type Img = { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string };
+export async function estimateFood(input: { text?: string; images?: Img[] }): Promise<FoodEstimate> {
+  const images = input.images ?? [];
+  if (mockMode()) return mock.food(input.text ?? "", images.length > 0);
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
-  if (input.image) content.push({ type: "image", source: { type: "base64", media_type: input.image.mediaType, data: input.image.data } });
-  content.push({ type: "text", text: input.text?.trim() ? input.text.trim() : "What's in this photo? Estimate its nutrition." });
+  images.forEach((img, i) => {
+    if (images.length > 1) content.push({ type: "text", text: `Photo ${i + 1}:` });
+    content.push({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } });
+  });
+  const multi = images.length > 1
+    ? " These photos are all from one meal: they may show the same food from different angles, separate dishes, or a dish plus its nutrition label. List each distinct food once — never count the same food twice. If a label matches a pictured food, use the label's numbers for it."
+    : "";
+  content.push({ type: "text", text: (input.text?.trim() ? input.text.trim() : images.length ? "Estimate the nutrition of what's shown." : "") + multi });
   const { data } = await ask(FoodEstimate, { system: FOOD_SYSTEM, messages: [{ role: "user", content }], effort: "low", maxTokens: 3000, model: FAST_MODEL });
   return { ...data, items: data.items.filter((i) => i.calories >= 0 && i.calories <= 3000).slice(0, 15) };
 }
