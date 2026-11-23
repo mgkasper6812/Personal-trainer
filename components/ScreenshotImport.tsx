@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import type { ScreenshotWorkout } from "@/lib/schemas";
+import { NumberInput } from "./ui";
 
 /** Shrink a photo to a JPEG data URL (max 1600px) so it uploads fast. */
 export async function toDataUrl(file: File): Promise<string> {
@@ -27,7 +28,7 @@ export default function ScreenshotImport({ image, onDone, onCancel }: { image: s
   }, [image]);
   const num = (k: keyof ScreenshotWorkout, label: string, unit: string) => (
     <label>{label}<span className="row" style={{ flexWrap: "nowrap", gap: 6 }}>
-      <input inputMode="decimal" value={(w?.[k] as number) || ""} onChange={(e) => setW(w && { ...w, [k]: Number(e.target.value) || 0 })} />
+      <NumberInput value={(w?.[k] as number) || null} onChange={(v) => setW(w && { ...w, [k]: v ?? 0 })} />
       <span className="small muted">{unit}</span></span></label>
   );
 

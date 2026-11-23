@@ -37,16 +37,16 @@ const adultSteps: Step<AdultProfile>[] = [
   </>) },
   { title: "Body basics", render: (p, set) => (<>
     <Field label="Sex"><Segmented options={["male", "female"] as const} value={p.sex} onChange={(v) => set({ sex: v })} labels={{ male: "Male", female: "Female" }} /></Field>
-    <Field label="Age"><Stepper value={p.age} onChange={(v) => set({ age: v ?? 0 })} min={18} max={100} unit="yrs" /></Field>
+    <Field label="Age"><Stepper value={p.age || null} onChange={(v) => set({ age: v ?? 0 })} min={18} max={100} unit="yrs" /></Field>
     <Field label="Height">
       <div className="row" style={{ gap: 16 }}>
         <Stepper value={Math.floor(p.heightIn / 12)} onChange={(v) => set({ heightIn: (v ?? 5) * 12 + (p.heightIn % 12) })} min={4} max={7} unit="ft" />
         <Stepper value={p.heightIn % 12} onChange={(v) => set({ heightIn: Math.floor(p.heightIn / 12) * 12 + Math.min(11, v ?? 0) })} min={0} max={11} unit="in" />
       </div>
     </Field>
-    <Field label="Current weight"><Stepper value={p.weightLb} onChange={(v) => set({ weightLb: v ?? 0 })} min={80} max={600} step={1} unit="lb" /></Field>
+    <Field label="Current weight"><Stepper value={p.weightLb || null} onChange={(v) => set({ weightLb: v ?? 0 })} min={80} max={600} step={0.2} decimals={1} unit="lb" /></Field>
     <Field label="Target weight (optional)" hint={p.weightLb ? `First milestone (5–7%): ${Math.round(p.weightLb * 0.93)}–${Math.round(p.weightLb * 0.95)} lb` : undefined}>
-      <Stepper value={p.targetWeightLb} onChange={(v) => set({ targetWeightLb: v })} min={80} max={600} unit="lb" />
+      <Stepper value={p.targetWeightLb} onChange={(v) => set({ targetWeightLb: v })} min={80} max={600} step={1} decimals={1} unit="lb" />
     </Field>
   </>) },
   { title: "Health context", sub: "So the coach follows the right guidance. Your doctor leads on medical decisions.", render: (p, set) => (<>

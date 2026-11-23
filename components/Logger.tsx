@@ -11,6 +11,7 @@ import {
 } from "@/lib/workout-client";
 import ExercisePicker from "./ExercisePicker";
 import { ExerciseSheet } from "./ExerciseInfo";
+import { NumberInput } from "./ui";
 
 const NEXT_TYPE: Record<SetType, SetType> = { normal: "warmup", warmup: "drop", drop: "failure", failure: "normal" };
 const TYPE_LABEL: Record<SetType, string> = { warmup: "W", drop: "D", failure: "F", normal: "" };
@@ -261,10 +262,10 @@ function ExerciseCard(props: {
                 <td className="prev small muted">{prev ? formatSet(e.kind, prev) : "—"}</td>
                 {cols.map((c) => (
                   <td key={c.key}>
-                    <input inputMode="decimal" className="cell"
+                    <NumberInput className="cell" decimals={c.key === "seconds" && e.kind === "sprint" ? 2 : c.key === "weight" || c.key === "topSpeed" || c.key === "topEV" || c.key === "minutes" ? 1 : 0}
                       placeholder={c.key === "reps" ? String(ex.target?.repsMax ?? ex.target?.repsMin ?? (prev?.reps ?? "")) : prev?.[c.key] != null ? String(prev[c.key]) : ""}
-                      value={s[c.key] == null ? "" : String(s[c.key])}
-                      onChange={(ev) => props.onField(ei, si, { [c.key]: ev.target.value === "" ? undefined : Number(ev.target.value) })} />
+                      value={s[c.key] as number | undefined}
+                      onChange={(v) => props.onField(ei, si, { [c.key]: v ?? undefined })} />
                   </td>
                 ))}
                 <td><button className={`tick ${s.done ? "on" : ""}`} aria-label={s.done ? "Undo set" : "Complete set"} onClick={() => props.onToggle(ei, si)}>✓</button></td>

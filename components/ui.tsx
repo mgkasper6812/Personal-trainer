@@ -1,5 +1,36 @@
 "use client";
 // Small tap-first input components shared by setup, check-in and the logger.
+import { useEffect, useRef, useState } from "react";
+
+/**
+ * A number box that keeps exactly what you type ("248." while typing 248.2) and reports a number
+ * (or null when empty). Rounds to `decimals` places; ignores anything that isn't a number.
+ */
+export function NumberInput({ value, onChange, decimals = 1, className, style, placeholder, ...rest }: {
+  value: number | null | undefined; onChange: (v: number | null) => void; decimals?: number;
+  className?: string; style?: React.CSSProperties; placeholder?: string; "aria-label"?: string;
+}) {
+  const [text, setText] = useState(value == null ? "" : String(value));
+  const ref = useRef<HTMLInputElement>(null);
+  const show = (v: number | null | undefined) => (v == null ? "" : String(v));
+  // While you're typing, your text wins (so "248." survives); outside changes (+/− buttons) show when you're not typing.
+  useEffect(() => {
+    if (typeof document !== "undefined" && document.activeElement === ref.current) return;
+    setText(show(value));
+  }, [value]);
+  const pattern = decimals > 0 ? new RegExp(`^\\d*(\\.\\d{0,${decimals}})?$`) : /^\d*$/;
+  return (
+    <input ref={ref} inputMode={decimals > 0 ? "decimal" : "numeric"} className={className} style={style} placeholder={placeholder} {...rest}
+      value={text}
+      onBlur={() => setText(show(value))}
+      onChange={(e) => {
+        const t = e.target.value.replace(",", ".");
+        if (!pattern.test(t)) return;
+        setText(t);
+        onChange(t === "" || t === "." ? null : Number(t));
+      }} />
+  );
+}
 
 export function Chips<T extends string>({ options, value, onChange, multi = false, labels }: {
   options: readonly T[]; value: T[] | T | null; onChange: (v: T[] | T) => void; multi?: boolean; labels?: Partial<Record<T, string>>;
@@ -42,8 +73,7 @@ export function Stepper({ value, onChange, step = 1, min = 0, max = 999, unit, d
   return (
     <div className="stepper">
       <button type="button" aria-label="decrease" onClick={() => v != null && set(v - step)}>−</button>
-      <input inputMode="decimal" value={v ?? ""} placeholder="–"
-        onChange={(e) => { const t = e.target.value; onChange(t === "" ? null : Number(t)); }} />
+      <NumberInput value={v} decimals={decimals} placeholder="–" onChange={onChange} />
       {unit && <span className="unit">{unit}</span>}
       <button type="button" aria-label="increase" onClick={() => set((v ?? min) + step)}>+</button>
     </div>
