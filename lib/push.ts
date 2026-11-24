@@ -2,7 +2,8 @@ import * as webpush from "web-push";
 import { listUsers } from "./auth";
 import { getCheckIn, getEvening, getMealPlan, getProfile, getProgram, getRecipe } from "./data";
 import { db } from "./db";
-import { mondayOf } from "./dates";
+import { addDays, mondayOf } from "./dates";
+import { getReview } from "./review";
 import { normalizeEvening } from "./evening";
 import type { User } from "./types";
 
@@ -63,7 +64,12 @@ export async function morningMessage(user: User, date: string) {
   const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
   const slot = date < rec.startDate ? null : rec.program.schedule.find((s) => s.dayOfWeek === dow);
   const rt = slot?.routineKey ? rec.program.routines.find((r) => r.key === slot.routineKey) : null;
-  const parts = [rt ? `Today: ${rt.name} · ~${rt.estMinutes} min.` : `Today: ${slot?.note ?? "rest day"}.`];
+  const parts: string[] = [];
+  try {
+    const rv = await getReview(user, addDays(date, -1));
+    if (rv) parts.push(`Yesterday: ${rv.grade} — ${rv.headline}`);
+  } catch (e) { console.warn("review for push failed", e); }
+  parts.push(rt ? `Today: ${rt.name} · ~${rt.estMinutes} min.` : `Today: ${slot?.note ?? "rest day"}.`);
   if (!checkIn) parts.push("Check in first — 30 sec.");
   if (profile?.kind === "adult") {
     const plan = await getMealPlan(user.id, mondayOf(date));

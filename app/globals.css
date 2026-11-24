@@ -375,3 +375,17 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .tray-item button { position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 50%;
   background: var(--bg); border: 1px solid var(--line); color: var(--text); font-size: 15px; line-height: 1; }
 .tray-add { width: 64px; height: 64px; border-radius: 10px; border: 1px dashed var(--line); background: transparent; color: var(--accent); font-size: 26px; padding: 0; }
+/* ---- Daily review ---- */
+.review { border-width: 1px; }
+.review.tone-red { border-color: color-mix(in srgb, var(--red) 60%, var(--line)); }
+.review.tone-yellow { border-color: color-mix(in srgb, var(--yellow) 50%, var(--line)); }
+.review-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 0; border: 0; background: none; text-align: left; min-height: 0; }
+.grade { width: 52px; height: 52px; flex: none; border-radius: 14px; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 28px; }
+.grade.green { background: var(--accent); color: var(--accent-ink); }
+.grade.yellow { background: var(--yellow); color: #1a1405; }
+.grade.red { background: var(--red); color: #fff; }
+.review-headline { display: block; font-size: 16px; line-height: 1.3; margin-top: 2px; }
+.review-list { margin-top: 14px; }
+.review-list ul, .review-list ol { margin: 6px 0 0; padding-left: 20px; } .review-list li { margin-bottom: 4px; }
+.review-list.wins li::marker { color: var(--accent); } .review-list.misses li::marker { color: var(--red); }
+.review-closer { margin: 14px 0 0; font-weight: 600; color: var(--accent); }

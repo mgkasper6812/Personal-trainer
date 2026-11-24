@@ -212,3 +212,14 @@ export const FoodEstimate = z.object({
   })),
 });
 export type FoodEstimate = z.infer<typeof FoodEstimate>;
+
+// The coach's morning report on yesterday.
+export const DailyReview = z.object({
+  grade: z.enum(["A", "B", "C", "D", "F"]).describe("A = nailed it, C = mixed, F = off the rails or nothing logged"),
+  headline: z.string().describe("One blunt sentence verdict with a number, e.g. 'Protein short by 70 g and the evening got away from you.'"),
+  wins: z.array(z.string()).describe("0–3 specific things that went well, with numbers"),
+  misses: z.array(z.string()).describe("0–3 specific misses, stated plainly with numbers and why they matter"),
+  todayFocus: z.array(z.string()).describe("1–3 concrete actions for today"),
+  closer: z.string().describe("One short encouraging line"),
+});
+export type DailyReview = z.infer<typeof DailyReview>;

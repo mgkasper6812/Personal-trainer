@@ -56,7 +56,7 @@ export async function usageThisMonth() {
 }
 
 /** One structured call to Claude. Returns the parsed object and the raw content (for append-only replay). */
-async function ask<S extends z.ZodType>(
+export async function ask<S extends z.ZodType>(
   schema: S,
   opts: { system: string; messages: Msg[]; effort: Effort; maxTokens?: number; model?: string },
 ): Promise<{ data: z.infer<S>; content: Anthropic.Beta.BetaContentBlockParam[] }> {

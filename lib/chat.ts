@@ -108,6 +108,10 @@ async function context(user: User, date: string) {
     habits: { list: [...(p?.dailyHabits ?? []), ...habits], doneToday: habitLog },
     profile,
   };
+  try {
+    const rv = await db().get<{ grade: string; headline: string; todayFocus: string[] }>(`review:${user.id}:${addDays(date, -1)}`);
+    if (rv) ctx.yesterdaysReport = { grade: rv.grade, headline: rv.headline, todayFocus: rv.todayFocus };
+  } catch {}
   if (user.role === "parent") {
     const monday = mondayOf(date);
     const [bio, protein, plan, weights] = await Promise.all([getHealthBio(user.id), getProteinLog(user.id, date), getMealPlan(user.id, monday), getWeights(user.id)]);
