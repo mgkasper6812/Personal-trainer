@@ -33,7 +33,12 @@ export default function ReviewCard({ date }: { date: string }) {
         {r.wins.length > 0 && <div className="review-list wins"><span className="eyebrow">What went well</span><ul>{r.wins.map((x) => <li key={x}>{x}</li>)}</ul></div>}
         {r.misses.length > 0 && <div className="review-list misses"><span className="eyebrow">What didn&apos;t</span><ul>{r.misses.map((x) => <li key={x}>{x}</li>)}</ul></div>}
         <div className="review-list focus"><span className="eyebrow">Today&apos;s focus</span><ol>{r.todayFocus.map((x) => <li key={x}>{x}</li>)}</ol></div>
+        {r.advice?.length > 0 && <div className="review-list advice"><span className="eyebrow">Coach&apos;s advice</span><ul>{r.advice.map((x) => <li key={x}>{x}</li>)}</ul></div>}
         <p className="review-closer">{r.closer}</p>
+        <div className="reply-chips">
+          {(r.replies ?? []).map((x) => <a key={x} className="chip" href={`/coach?say=${encodeURIComponent(x)}`}>{x}</a>)}
+          <a className="chip" href="/coach">Talk to coach</a>
+        </div>
       </>)}
     </section>
   );

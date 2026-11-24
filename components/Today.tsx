@@ -11,6 +11,7 @@ import { startWorkout } from "@/lib/workout-client";
 import { IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
 import FoodCard from "./FoodCard";
 import ReviewCard from "./ReviewCard";
+import CoachCard from "./CoachCard";
 import { ExerciseSheet } from "./ExerciseInfo";
 import { rxParts } from "@/lib/rx";
 import TonightCard from "./TonightCard";
@@ -103,6 +104,7 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
 
       {d?.hasProgram && (<>
         {self && isToday && <ReviewCard date={date} />}
+        {self && isToday && <CoachCard date={date} />}
         <section className="card week-card">
           <div className="row" style={{ gap: 14, flexWrap: "nowrap" }}>
             <svg width="88" height="88" viewBox="0 0 88 88" role="img" aria-label={`${d.weekStats.done} of ${d.weekStats.planned} workouts, ${d.weekStats.activeMin} of 150 active minutes`}>

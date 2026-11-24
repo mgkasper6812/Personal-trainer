@@ -389,3 +389,15 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .review-list ul, .review-list ol { margin: 6px 0 0; padding-left: 20px; } .review-list li { margin-bottom: 4px; }
 .review-list.wins li::marker { color: var(--accent); } .review-list.misses li::marker { color: var(--red); }
 .review-closer { margin: 14px 0 0; font-weight: 600; color: var(--accent); }
+/* ---- Interactive coach ---- */
+.reply-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.reply-chips .chip { font-size: 13px; padding: 7px 12px; text-decoration: none; color: var(--text); border: 1px solid var(--line); background: var(--card2); }
+.bubble.coach .reply-chips .chip { background: var(--bg); }
+.bubble.proactive { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.bubble-kind { display: block; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+.review-list.advice li::marker { color: var(--accent2); }
+.coach-card { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.coach-card svg { color: var(--accent); }
+.tab-badge-wrap { position: relative; display: inline-flex; }
+.tab-badge { position: absolute; top: -4px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 800; display: grid; place-items: center; line-height: 1; }

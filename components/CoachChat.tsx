@@ -32,9 +32,16 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
     return () => window.removeEventListener("paste", onPaste);
   }, []);
 
-  useEffect(() => { api<{ display: ChatLine[] }>("/api/chat").then((r) => setLines(r.display), (e) => setErr(e.message)); }, []);
+  useEffect(() => {
+    api<{ display: ChatLine[] }>("/api/chat").then((r) => {
+      setLines(r.display);
+      const say = new URLSearchParams(window.location.search).get("say");
+      if (say) { window.history.replaceState(null, "", "/coach"); setTimeout(() => sendRef.current?.(say), 0); }
+    }, (e) => setErr(e.message));
+  }, []);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [lines, busy]);
 
+  const sendRef = useRef<((m: string) => void) | null>(null);
   async function send(msg: string) {
     const t = msg.trim();
     if (!t || busy) return;
@@ -45,6 +52,9 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
     setBusy(false);
   }
 
+  sendRef.current = send;
+  const lastCoach = lines ? lines.length - 1 - [...lines].reverse().findIndex((l) => l.role === "coach") : -1;
+  const KIND: Record<string, string> = { review: "Morning report", nudge: "Check-in", workout: "Workout feedback" };
   return (
     <main className="chat-page">
       <h1 style={{ marginBottom: 4 }}>Coach</h1>
@@ -53,9 +63,13 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
       <div className="chat">
         {lines?.length === 0 && <div className="bubble coach">Hey — I know your plan, check-ins and progress. What do you need?</div>}
         {lines?.map((l, i) => (
-          <div key={i} className={`bubble ${l.role}`}>
+          <div key={i} className={`bubble ${l.role} ${l.kind ? "proactive" : ""}`}>
+            {l.kind && <span className="bubble-kind">{KIND[l.kind]}</span>}
             {l.text}
             {l.actions && <div className="chat-actions">{l.actions.map((a) => <span key={a} className="chat-action"><IconCheck size={14} />{a}</span>)}</div>}
+            {i === lastCoach && !busy && l.replies && l.replies.length > 0 && (
+              <div className="reply-chips">{l.replies.map((r) => <button key={r} className="chip" onClick={() => send(r)}>{r}</button>)}</div>
+            )}
           </div>
         ))}
         {image && <ScreenshotImport image={image} onCancel={() => setImage(null)} onDone={(summary) => { setImage(null); send(`I logged a workout from a screenshot — ${summary}`); }} />}
@@ -63,7 +77,7 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
         <div ref={end} />
       </div>
       {err && <p className="error">{err}</p>}
-      {!busy && (lines?.length ?? 0) < 4 && (
+      {!busy && (lines?.length ?? 0) < 4 && !(lines?.[lastCoach]?.replies?.length) && (
         <div className="chips scroll-x" style={{ marginTop: 12 }}>
           {SUGGEST[role].map((s) => <button key={s} className="chip" onClick={() => send(s)}>{s}</button>)}
         </div>

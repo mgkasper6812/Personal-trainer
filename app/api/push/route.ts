@@ -15,7 +15,7 @@ export const GET = handle(async () => {
 export const POST = handle(async (req) => {
   const me = await requireUser();
   if (me instanceof Response) return me;
-  const b = await body<{ action: string; subscription: PushPrefs["subscriptions"][number]; tz: string; morning: PushPrefs["morning"]; evening: PushPrefs["evening"] }>(req);
+  const b = await body<{ action: string; subscription: PushPrefs["subscriptions"][number]; tz: string; morning: PushPrefs["morning"]; midday: PushPrefs["morning"]; evening: PushPrefs["evening"] }>(req);
   const prefs = await getPrefs(me.id);
   if (typeof b.tz === "string" && b.tz.length < 60) {
     try { new Intl.DateTimeFormat("en-US", { timeZone: b.tz }); prefs.tz = b.tz; } catch {}
@@ -29,6 +29,7 @@ export const POST = handle(async (req) => {
     prefs.subscriptions = ep ? prefs.subscriptions.filter((x) => x.endpoint !== ep) : [];
   } else if (b.action === "settings") {
     if (b.morning && typeof b.morning.on === "boolean" && HHMM.test(b.morning.time)) prefs.morning = { on: b.morning.on, time: b.morning.time };
+    if (b.midday && typeof b.midday.on === "boolean" && HHMM.test(b.midday.time)) prefs.midday = { on: b.midday.on, time: b.midday.time };
     if (b.evening && typeof b.evening.on === "boolean") prefs.evening = { on: b.evening.on, time: b.evening.time && HHMM.test(b.evening.time) ? b.evening.time : null };
   } else if (b.action === "test") {
     const n = await send(me.id, { title: "Family Trainer", body: "Notifications are working. See you in the morning.", url: "/today", tag: "test" });

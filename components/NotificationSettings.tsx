@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { Segmented } from "./ui";
 
-type Prefs = { tz: string; morning: { on: boolean; time: string }; evening: { on: boolean; time: string | null }; devices: number };
+type Prefs = { tz: string; morning: { on: boolean; time: string }; midday?: { on: boolean; time: string }; evening: { on: boolean; time: string | null }; devices: number };
 
 function keyToBytes(b64: string) {
   const pad = "=".repeat((4 - (b64.length % 4)) % 4);
@@ -48,7 +48,7 @@ export default function NotificationSettings({ role }: { role: "parent" | "athle
   }
   async function save(p: Prefs) {
     setPrefs(p);
-    await api("/api/push", { body: { action: "settings", morning: p.morning, evening: p.evening, tz } }).catch((e) => setMsg(e.message));
+    await api("/api/push", { body: { action: "settings", morning: p.morning, midday: p.midday, evening: p.evening, tz } }).catch((e) => setMsg(e.message));
   }
   async function test() {
     const r = await api<{ sent: number }>("/api/push", { body: { action: "test" } });
@@ -70,6 +70,14 @@ export default function NotificationSettings({ role }: { role: "parent" | "athle
             <input type="time" value={prefs.morning.time} onChange={(e) => e.target.value && save({ ...prefs, morning: { ...prefs.morning, time: e.target.value } })} style={{ maxWidth: 140 }} aria-label="Morning notification time" />
           </div>
           <p className="small muted">Today&apos;s workout, a check-in reminder{role === "parent" ? " and tonight's dinner" : ""}.</p>
+        </div>
+        <div className="field">
+          <div className="field-label">Midday coach check-in</div>
+          <div className="row" style={{ flexWrap: "nowrap" }}>
+            <Segmented options={["on", "off"]} value={(prefs.midday?.on ?? true) ? "on" : "off"} onChange={(v) => save({ ...prefs, midday: { time: prefs.midday?.time ?? "12:30", on: v === "on" } })} labels={{ on: "On", off: "Off" }} />
+            <input type="time" value={prefs.midday?.time ?? "12:30"} onChange={(e) => e.target.value && save({ ...prefs, midday: { on: prefs.midday?.on ?? true, time: e.target.value } })} style={{ maxWidth: 140 }} aria-label="Midday check-in time" />
+          </div>
+          <p className="small muted">Your coach looks at how the day is going and sends one specific suggestion.</p>
         </div>
         {role === "parent" && (
           <div className="field">

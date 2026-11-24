@@ -6,6 +6,7 @@ import { db } from "./db";
 import { addDays, mondayOf, weekdayName } from "./dates";
 import { coachSystem } from "./prompts";
 import { DailyReview } from "./schemas";
+import { postCoachMessage } from "./chat";
 import type { User } from "./types";
 
 export type StoredReview = DailyReview & { forDate: string; createdAt: string; empty: boolean };
@@ -16,6 +17,8 @@ You are writing the morning report on the user's previous day. Grade it honestly
   no excuses for them, no lectures. Never insult or shame.
 - Always end on a concrete plan for today and one genuinely encouraging line. Streaks of good days deserve real praise.
 - Use only the data provided. If little or nothing was logged, say that is itself the problem ("can't coach what you don't log").
+- Coach, don't just grade: in advice, give practical suggestions that fix yesterday's misses (what to eat and when, a swap, how to prep
+  tonight, how to adjust a lift). In replies, offer 2–3 short things they might tap to talk it through with you.
 - Keep every line short and specific (numbers, foods, exercises). Max 3 items per list.`;
 
 const ATHLETE_RULES = `
@@ -71,8 +74,10 @@ export async function getReview(user: User, day: string): Promise<StoredReview |
   let review: DailyReview;
   if (mockMode()) {
     review = logged
-      ? { grade: "C", headline: "Mixed day: protein came up short and the evening slipped.", wins: ["Checked in and logged breakfast."], misses: ["Protein 70 g under target."], todayFocus: ["Protein at every meal.", "Walk after dinner."], closer: "One good day starts now." }
-      : { grade: "F", headline: "Nothing logged yesterday — I can't coach what I can't see.", wins: [], misses: ["No food, workout or check-in logged."], todayFocus: ["Check in this morning.", "Log every meal today."], closer: "Reset today. It only takes a few taps." };
+      ? { grade: "C", headline: "Mixed day: protein came up short and the evening slipped.", wins: ["Checked in and logged breakfast."], misses: ["Protein 70 g under target."], todayFocus: ["Protein at every meal.", "Walk after dinner."],
+          advice: ["Put 40 g of protein in before noon — Greek yogurt plus a shake does it.", "Pre-portion tonight's snack at 7:30 so the decision is already made."], replies: ["Plan tonight's dinner", "Why did I miss protein?"], closer: "One good day starts now." }
+      : { grade: "F", headline: "Nothing logged yesterday — I can't coach what I can't see.", wins: [], misses: ["No food, workout or check-in logged."], todayFocus: ["Check in this morning.", "Log every meal today."],
+          advice: ["Log right after you eat — a photo takes five seconds."], replies: ["Help me plan today"], closer: "Reset today. It only takes a few taps." };
   } else {
     review = (await ask(DailyReview, {
       system: `${coachSystem(user.role)}\n${REVIEW_RULES}${athlete ? ATHLETE_RULES : ""}`,
@@ -83,6 +88,12 @@ export async function getReview(user: User, day: string): Promise<StoredReview |
   }
   const stored: StoredReview = { ...review, forDate: day, createdAt: new Date().toISOString(), empty: !logged };
   await db().set(key, stored);
+  // The report also opens today's conversation in the Coach chat.
+  await postCoachMessage(user.id, [
+    `${weekdayName(day)}: ${review.grade} — ${review.headline}`,
+    review.todayFocus.length ? `Today: ${review.todayFocus.join(" ")}` : "",
+    review.advice?.[0] ?? "",
+  ].filter(Boolean).join("\n\n"), "review", review.replies ?? []);
   return stored;
 }
 

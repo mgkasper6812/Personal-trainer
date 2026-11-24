@@ -220,6 +220,15 @@ export const DailyReview = z.object({
   wins: z.array(z.string()).describe("0–3 specific things that went well, with numbers"),
   misses: z.array(z.string()).describe("0–3 specific misses, stated plainly with numbers and why they matter"),
   todayFocus: z.array(z.string()).describe("1–3 concrete actions for today"),
+  advice: z.array(z.string()).describe("1–3 practical coaching tips or suggestions tailored to what happened (how to fix the miss, swaps, timing, prep)"),
+  replies: z.array(z.string()).describe("2–3 short things the user might tap to reply to you, e.g. 'Plan tonight's dinner', 'Why did I miss protein?'"),
   closer: z.string().describe("One short encouraging line"),
 });
 export type DailyReview = z.infer<typeof DailyReview>;
+
+// A short proactive message from the coach (midday check-in, post-workout feedback).
+export const CoachNote = z.object({
+  message: z.string().describe("2–4 short sentences: what you see, one specific suggestion, and why"),
+  replies: z.array(z.string()).describe("2–3 short replies the user might tap"),
+});
+export type CoachNote = z.infer<typeof CoachNote>;

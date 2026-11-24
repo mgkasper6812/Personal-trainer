@@ -1,15 +1,22 @@
 import { requireUser } from "@/lib/auth";
-import { chatTurn, getChat } from "@/lib/chat";
+import { chatTurn, getChat, markSeen, unreadCount } from "@/lib/chat";
 import { isDate } from "@/lib/dates";
 import { bad, body, handle, ok } from "@/lib/http";
 
 export const maxDuration = 120;
 
 // Chats are private to their owner (a parent can't read Maicie's).
-export const GET = handle(async () => {
+// ?unread=1 → just the count of new coach messages (for the tab badge); otherwise the conversation, marked as read.
+export const GET = handle(async (req) => {
   const me = await requireUser();
   if (me instanceof Response) return me;
-  return ok({ display: (await getChat(me.id)).display });
+  const q = new URL(req.url).searchParams;
+  if (q.get("unread")) return ok({ unread: unreadCount(await getChat(me.id)) });
+  if (q.get("latest")) {
+    const st = await getChat(me.id);
+    return ok({ latest: [...st.display].reverse().find((l) => l.role === "coach") ?? null, unread: unreadCount(st) });
+  }
+  return ok({ display: (await markSeen(me.id)).display });
 });
 
 export const POST = handle(async (req) => {

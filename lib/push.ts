@@ -4,6 +4,7 @@ import { getCheckIn, getEvening, getMealPlan, getProfile, getProgram, getRecipe 
 import { db } from "./db";
 import { addDays, mondayOf } from "./dates";
 import { getReview } from "./review";
+import { middayNote } from "./nudges";
 import { normalizeEvening } from "./evening";
 import type { User } from "./types";
 
@@ -11,6 +12,7 @@ export type PushPrefs = {
   subscriptions: webpush.PushSubscription[];
   tz: string; // IANA zone from the phone, e.g. America/Chicago
   morning: { on: boolean; time: string };
+  midday?: { on: boolean; time: string };
   evening: { on: boolean; time: string | null }; // null = 15 min before TV
 };
 
@@ -25,7 +27,7 @@ export async function vapid() {
 }
 
 export const getPrefs = async (uid: string): Promise<PushPrefs> =>
-  (await db().get<PushPrefs>(`push:${uid}`)) ?? { subscriptions: [], tz: "America/New_York", morning: { on: true, time: "07:00" }, evening: { on: true, time: null } };
+  (await db().get<PushPrefs>(`push:${uid}`)) ?? { subscriptions: [], tz: "America/New_York", morning: { on: true, time: "07:00" }, midday: { on: true, time: "12:30" }, evening: { on: true, time: null } };
 export const savePrefs = (uid: string, p: PushPrefs) => db().set(`push:${uid}`, p);
 
 /** Local date and HH:MM for a time zone. */
@@ -100,8 +102,10 @@ export async function dispatch(now = new Date()) {
     if (!prefs.subscriptions.length) continue;
     const { date, minutes } = localNow(prefs.tz, now);
     const profile = await getProfile(user.id);
-    const due: { kind: "morning" | "evening"; at: number }[] = [];
+    const due: { kind: "morning" | "midday" | "evening"; at: number }[] = [];
     if (prefs.morning.on) due.push({ kind: "morning", at: toMin(prefs.morning.time) });
+    const midday = prefs.midday ?? { on: true, time: "12:30" };
+    if (midday.on) due.push({ kind: "midday", at: toMin(midday.time) });
     if (prefs.evening.on && profile?.kind === "adult") {
       const at = prefs.evening.time ? toMin(prefs.evening.time) : Math.max(0, toMin(profile.tvTime) - 15);
       due.push({ kind: "evening", at });
@@ -110,7 +114,14 @@ export async function dispatch(now = new Date()) {
       if (minutes < d.at || minutes > d.at + 120) continue;
       const key = `pushsent:${user.id}:${d.kind}:${date}`;
       if (await db().get(key)) continue;
-      const msg = d.kind === "morning" ? await morningMessage(user, date) : await eveningMessage(user, date);
+      let msg: { title: string; body: string; url: string; tag: string } | null = null;
+      if (d.kind === "morning") msg = await morningMessage(user, date);
+      else if (d.kind === "evening") msg = await eveningMessage(user, date);
+      else {
+        const hh = String(Math.floor(minutes / 60)).padStart(2, "0"), mm = String(minutes % 60).padStart(2, "0");
+        const note = await middayNote(user, date, `${hh}:${mm}`).catch((e) => { console.warn("midday note failed", e); return null; });
+        if (note) msg = { title: "Coach", body: note.message, url: "/coach", tag: `midday-${date}` };
+      }
       await db().set(key, true); // mark first so a slow send can't double-fire
       if (msg) results.push(`${user.name}:${d.kind}:${await send(user.id, msg)}`);
     }

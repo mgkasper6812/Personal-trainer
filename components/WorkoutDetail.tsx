@@ -13,6 +13,12 @@ export const SHORTCUT_NAME = "Trainer Watch Sync";
 export default function WorkoutDetail({ id, viewUser, justFinished }: { id: string; viewUser: string | null; justFinished: boolean }) {
   const [r, setR] = useState<{ workout: Workout; self: boolean } | null>(null);
   const [err, setErr] = useState("");
+  const [fb, setFb] = useState<{ message: string; replies: string[] } | null | "loading">(null);
+  useEffect(() => {
+    if (viewUser) return;
+    setFb("loading");
+    api<{ note: { message: string; replies: string[] } }>(`/api/workouts/${id}/feedback`).then((x) => setFb(x.note), () => setFb(null));
+  }, [id, viewUser]);
   useEffect(() => { api<{ workout: Workout; self: boolean }>(`/api/workouts/${id}${viewUser ? `?user=${viewUser}` : ""}`).then(setR, (e) => setErr(e.message)); }, [id, viewUser]);
   if (!r) return <main>{err ? <p className="error">{err}</p> : <p className="muted"><span className="spinner" />Loading…</p>}</main>;
   const w = r.workout;
@@ -40,6 +46,19 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
         <div className="stat"><b>{w.stats.sets}</b>sets</div>
         {w.stats.volume > 0 && <div className="stat"><b>{w.stats.volume.toLocaleString()}</b>lb volume</div>}
       </div>
+
+      {fb && (
+        <div className="card coach-card" style={{ marginTop: 14 }}>
+          <span className="eyebrow">Coach</span>
+          {fb === "loading" ? <p className="small muted"><span className="spinner" />Your coach is looking at this workout…</p> : (<>
+            <p style={{ margin: "8px 0 10px" }}>{fb.message}</p>
+            <div className="reply-chips">
+              {fb.replies.map((x) => <a key={x} className="chip" href={`/coach?say=${encodeURIComponent(x)}`}>{x}</a>)}
+              <a className="chip" href="/coach">Reply</a>
+            </div>
+          </>)}
+        </div>
+      )}
 
       <div className="card" style={{ marginTop: 14 }}>
         <h2 className="row" style={{ gap: 8 }}><IconWatch size={20} />Apple Watch</h2>

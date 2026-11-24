@@ -12,19 +12,48 @@ import { evaluate } from "./rules";
 import type { User } from "./types";
 
 type Msg = Anthropic.Beta.BetaMessageParam;
-export type ChatLine = { role: "me" | "coach"; text: string; actions?: string[]; at: string };
-export type ChatState = { messages: Msg[]; display: ChatLine[] };
+export type ChatLine = { role: "me" | "coach"; text: string; actions?: string[]; at: string; kind?: "review" | "nudge" | "workout"; replies?: string[] };
+export type ChatState = { messages: Msg[]; display: ChatLine[]; pending?: string[]; lastSeen?: string };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const getChat = async (uid: string) => (await db().get<ChatState>(`chat:${uid}`)) ?? { messages: [], display: [] };
 const saveChat = (uid: string, c: ChatState) => db().set(`chat:${uid}`, c);
+
+/** The coach starts a conversation: shown in the chat, and passed to the model with the user's next message. */
+export async function postCoachMessage(uid: string, text: string, kind: ChatLine["kind"], replies: string[] = []) {
+  const state = await getChat(uid);
+  state.display.push({ role: "coach", text, kind, replies: replies.slice(0, 3), at: new Date().toISOString() });
+  state.display = state.display.slice(-200);
+  state.pending = [...(state.pending ?? []), text].slice(-6);
+  await saveChat(uid, state);
+}
+
+export async function markSeen(uid: string) {
+  const state = await getChat(uid);
+  state.lastSeen = new Date().toISOString();
+  await saveChat(uid, state);
+  return state;
+}
+
+export const unreadCount = (state: ChatState) =>
+  state.display.filter((l) => l.role === "coach" && (!state.lastSeen || l.at > state.lastSeen)).length;
+
+/** Pull a trailing "Suggestions: a | b | c" line off a reply. */
+function splitReplies(text: string): { text: string; replies: string[] } {
+  const m = text.match(/\n*\s*Suggestions?:\s*(.+)\s*$/i);
+  if (!m) return { text, replies: [] };
+  return { text: text.slice(0, m.index).trim(), replies: m[1].split("|").map((x) => x.trim().replace(/^["']|["']$/g, "")).filter(Boolean).slice(0, 3) };
+}
 
 const CHAT_RULES = `
 You are chatting inside the family's training app. Reply in 2–4 short sentences unless asked for more; use a short list only
 when it really helps. Ground answers in the context block that comes with each message (cite a number when you can). If the
 context doesn't have something, say so — never invent data. When the user asks you to change something the tools cover, call
 the tool, then confirm exactly what changed. Never claim a change you didn't make. For medical questions, give general guidance
-and point to their doctor. Exercise ids you may use with swap_exercise: ${EXERCISES.map((e) => e.id).join(", ")}.`;
+and point to their doctor. Act like a real coach: notice patterns, give specific advice and suggestions (what to eat next, how to adjust a
+session, how to prep for tonight), ask a short follow-up question when it helps, and hold them to what they said they'd do.
+End EVERY reply with a final line exactly like: "Suggestions: <reply 1> | <reply 2> | <reply 3>" — 2–3 short things the user might say next.
+Exercise ids you may use with swap_exercise: ${EXERCISES.map((e) => e.id).join(", ")}.`;
 
 function tools(role: User["role"]): Anthropic.Beta.BetaTool[] {
   const t: Anthropic.Beta.BetaTool[] = [
@@ -222,6 +251,7 @@ export async function chatTurn(user: User, text: string, date: string): Promise<
   const now = new Date().toISOString();
   state.display.push({ role: "me", text, at: now });
   const ctx = await context(user, date);
+  if (state.pending?.length) { ctx.coachMessagesYouSentSinceLastReply = state.pending; state.pending = []; }
   const messages: Msg[] = [...state.messages, {
     role: "user",
     content: [{ type: "text", text: `<context>\n${JSON.stringify(ctx)}\n</context>` }, { type: "text", text }],
@@ -231,7 +261,8 @@ export async function chatTurn(user: User, text: string, date: string): Promise<
 
   if (mockMode()) {
     if (/thursday/i.test(text) && /zone/i.test(text)) actions.push((await runTool(user, date, "set_day_plan", { day: "Thu", mode: "routine", routine_name: "Zone 2 Cardio" })).action!);
-    reply = actions.length ? "Done — Thursday is now Zone 2 Cardio. Keep it conversational, about 40 minutes." : "Got it. (Coach is in test mode.)";
+    reply = (actions.length ? "Done — Thursday is now Zone 2 Cardio. Keep it conversational, about 40 minutes." : "Got it. (Coach is in test mode.)")
+      + "\nSuggestions: What should I eat tonight? | Adjust today's workout | How am I doing this week?";
     messages.push({ role: "assistant", content: [{ type: "text", text: reply }] });
   } else {
     const system = [{ type: "text" as const, text: `${coachSystem(user.role)}\n${CHAT_RULES}`, cache_control: { type: "ephemeral" as const } }];
@@ -273,7 +304,9 @@ export async function chatTurn(user: User, text: string, date: string): Promise<
     }
   }
 
-  state.display.push({ role: "coach", text: reply || "Done.", actions: actions.length ? actions : undefined, at: new Date().toISOString() });
+  const split = splitReplies(reply || "Done.");
+  state.display.push({ role: "coach", text: split.text || "Done.", actions: actions.length ? actions : undefined, replies: split.replies.length ? split.replies : undefined, at: new Date().toISOString() });
+  state.lastSeen = new Date().toISOString();
   // Keep history bounded: drop whole turns from the front only (never edit the middle).
   let start = 0;
   while (messages.length - start > 80) {

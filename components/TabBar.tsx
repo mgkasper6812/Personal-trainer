@@ -10,6 +10,11 @@ export default function TabBar({ role }: { role: "parent" | "athlete" }) {
   const path = usePathname();
   const [active, setActive] = useState<{ name: string; startedAt: string } | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (path.startsWith("/coach")) { setUnread(0); return; }
+    fetch("/api/chat?unread=1").then((r) => (r.ok ? r.json() : { unread: 0 })).then((x) => setUnread(x.unread ?? 0), () => {});
+  }, [path]);
   useEffect(() => {
     setActive(loadActive());
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -33,7 +38,9 @@ export default function TabBar({ role }: { role: "parent" | "athlete" }) {
         {role === "parent"
           ? <Link href="/meals" className={on(["/meals"])}><IconFork />Meals</Link>
           : <Link href="/progress" className={on(["/progress", "/history"])}><IconChart />Progress</Link>}
-        <Link href="/coach" className={on(["/coach"])}><IconChat />Coach</Link>
+        <Link href="/coach" className={on(["/coach"])} aria-label={unread ? `Coach, ${unread} new` : "Coach"}>
+          <span className="tab-badge-wrap"><IconChat />{unread > 0 && <span className="tab-badge">{unread > 9 ? "9+" : unread}</span>}</span>Coach
+        </Link>
       </nav>
       <LogSheet role={role} />
     </>
