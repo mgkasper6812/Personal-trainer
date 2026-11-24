@@ -1,6 +1,8 @@
 import { requireUser, resolveTarget } from "@/lib/auth";
 import { deleteWorkout, getWorkout, putWorkout } from "@/lib/data";
-import { cleanWatch } from "@/lib/workout-save";
+import { cleanWatch, saveWorkout } from "@/lib/workout-save";
+import { withCardio } from "@/lib/cardio";
+import { getExercise } from "@/lib/exercises";
 import { bad, ok } from "@/lib/http";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -28,7 +30,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const w = await getWorkout(me.id, (await params).id);
   if (!w) return bad("Not found", 404);
   const b = (await req.json().catch(() => ({}))) as { watch?: unknown };
-  w.watch = b.watch === null ? undefined : cleanWatch(b.watch) ?? w.watch;
-  await putWorkout(me.id, w);
-  return ok({ workout: w });
+  if (b.watch === null) { w.watch = undefined; await putWorkout(me.id, w); return ok({ workout: w }); }
+  const watch = cleanWatch(b.watch) ?? w.watch;
+  // log the full cardio numbers on the workout's cardio entry too, then re-save so stats and records update
+  const saved = await saveWorkout(me.id, { ...w, watch, exercises: withCardio(w.exercises, watch, (id) => getExercise(id)?.kind) });
+  return ok({ workout: saved });
 }

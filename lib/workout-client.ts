@@ -8,7 +8,7 @@ import type { LoggedExercise, LoggedSet } from "./types";
 
 export type Target = { repsMin: number | null; repsMax: number | null; seconds: number | null; minutes: number | null; count: number | null;
   weightLb?: number | null; targetRpe?: number | null; tempo?: string | null; notes?: string | null };
-export type ActiveExercise = LoggedExercise & { target?: Target; hint?: string };
+export type ActiveExercise = LoggedExercise & { target?: Target; hint?: string; fromShot?: "filled" | "added" };
 export type ActiveWorkout = {
   id: string;
   date: string;
@@ -35,7 +35,7 @@ export const columns = (kind: ExerciseKind): { key: keyof LoggedSet; label: stri
     case "weight_reps": return [{ key: "weight", label: "LB", step: 2.5 }, { key: "reps", label: "REPS" }];
     case "reps": return [{ key: "reps", label: "REPS" }];
     case "duration": return [{ key: "seconds", label: "SEC" }];
-    case "cardio": return [{ key: "minutes", label: "MIN" }];
+    case "cardio": return [{ key: "minutes", label: "MIN" }, { key: "miles", label: "MI", step: 0.1 }, { key: "avgHR", label: "AVG HR" }];
     case "swings": return [{ key: "count", label: "SWINGS" }, { key: "topSpeed", label: "BAT MPH" }, { key: "topEV", label: "EV MPH" }];
     case "throws": return [{ key: "count", label: "THROWS" }, { key: "topSpeed", label: "MPH" }];
     case "sprint": return [{ key: "seconds", label: "SEC" }];
@@ -48,7 +48,7 @@ export function formatSet(kind: ExerciseKind, s: Partial<LoggedSet>) {
     case "weight_reps": return s.weight != null && s.reps != null ? `${s.weight} × ${s.reps}` : "";
     case "reps": return s.reps != null ? `${s.reps} reps` : "";
     case "duration": return s.seconds != null ? `${s.seconds}s` : "";
-    case "cardio": return s.minutes != null ? `${s.minutes} min` : "";
+    case "cardio": return [s.minutes && `${s.minutes} min`, s.miles && `${s.miles} mi`, s.avgHR && `avg ${s.avgHR} bpm`, s.maxHR && `max ${s.maxHR}`, s.calories && `${s.calories} kcal`].filter(Boolean).join(" · ");
     case "swings": return [s.count && `${s.count} sw`, s.topSpeed && `${s.topSpeed} mph`, s.topEV && `EV ${s.topEV}`].filter(Boolean).join(" · ");
     case "throws": return [s.count && `${s.count}`, s.topSpeed && `${s.topSpeed} mph`].filter(Boolean).join(" · ");
     case "sprint": return s.seconds != null ? `${s.seconds}s` : "";

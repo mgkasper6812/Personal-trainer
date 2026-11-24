@@ -116,6 +116,8 @@ export type LoggedSet = {
   topEV?: number; // exit velo (mph)
   distance?: number; // inches (jumps) or feet (throws)
   minutes?: number;
+  miles?: number; // cardio distance
+  avgHR?: number; maxHR?: number; calories?: number; // cardio heart rate / active calories
   rpe?: number;
   done: boolean;
 };
@@ -140,7 +142,8 @@ export type Workout = {
   exercises: LoggedExercise[];
   rpe?: number; // session RPE
   notes?: string;
-  watch?: { avgHR?: number; maxHR?: number; calories?: number; durationMin?: number; distanceMi?: number; zones?: string; source?: string; syncedAt: string };
+  watch?: { avgHR?: number; maxHR?: number; calories?: number; durationMin?: number; distanceMi?: number; zones?: string; source?: string;
+    activity?: string; pace?: string; elevationFt?: number; syncedAt: string };
   stats: { volume: number; sets: number; prs: PR[] };
 };
 

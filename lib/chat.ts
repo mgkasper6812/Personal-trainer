@@ -11,6 +11,7 @@ import { coachSystem } from "./prompts";
 import { evaluate } from "./rules";
 import type { LoggedExercise, User, Workout } from "./types";
 import { saveWorkout } from "./workout-save";
+import { cardioExerciseFor, cardioSet } from "./cardio";
 
 type Msg = Anthropic.Beta.BetaMessageParam;
 export type ChatLine = { role: "me" | "coach"; text: string; actions?: string[]; at: string; kind?: "review" | "nudge" | "workout"; replies?: string[]; photos?: number };
@@ -107,8 +108,9 @@ function tools(role: User["role"]): Anthropic.Beta.BetaTool[] {
           exercises: { type: "array", items: { type: "object", additionalProperties: false, required: ["exercise_id", "notes", "sets"], properties: {
             exercise_id: { type: "string", description: "An id from the exercise list in your instructions; other_cardio for cardio that doesn't fit" },
             notes: { type: "string" },
-            sets: { type: "array", items: { type: "object", additionalProperties: false, required: ["reps", "weight_lb", "minutes", "seconds"], properties: {
+            sets: { type: "array", items: { type: "object", additionalProperties: false, required: ["reps", "weight_lb", "minutes", "seconds", "miles", "avg_hr"], properties: {
               reps: { type: "integer" }, weight_lb: { type: "number" }, minutes: { type: "number" }, seconds: { type: "integer" },
+              miles: { type: "number", description: "Cardio distance" }, avg_hr: { type: "integer", description: "Cardio average heart rate" },
             } } },
           } } },
           avg_hr: { type: "integer" }, max_hr: { type: "integer" }, calories: { type: "integer", description: "Active calories" }, distance_mi: { type: "number" },
@@ -305,7 +307,7 @@ export async function chatTurn(user: User, text: string, date: string, images: C
       const add = /heart rate|\bhr\b|add .* to/i.test(text);
       actions.push((await runTool(user, date, "log_workout", add
         ? { date, name: "", routine_name: "", duration_min: 32, exercises: [], avg_hr: 128, max_hr: 151, calories: 310, distance_mi: 0, add_to_existing: true, notes: "" }
-        : { date, name: "Evening walk", routine_name: "", duration_min: 30, exercises: [{ exercise_id: "brisk_walk", notes: "", sets: [{ reps: 0, weight_lb: 0, minutes: 30, seconds: 0 }] }], avg_hr: 112, max_hr: 131, calories: 180, distance_mi: 1.7, add_to_existing: false, notes: "" })).action ?? "Nothing logged");
+        : { date, name: "Evening walk", routine_name: "", duration_min: 30, exercises: [{ exercise_id: "brisk_walk", notes: "", sets: [{ reps: 0, weight_lb: 0, minutes: 30, seconds: 0, miles: 0, avg_hr: 0 }] }], avg_hr: 112, max_hr: 131, calories: 180, distance_mi: 1.7, add_to_existing: false, notes: "" })).action ?? "Nothing logged");
     }
     if (/thursday/i.test(text) && /zone/i.test(text)) actions.push((await runTool(user, date, "set_day_plan", { day: "Thu", mode: "routine", routine_name: "Zone 2 Cardio" })).action!);
     reply = (actions.some((a) => /workout|Added/.test(a)) ? `${actions[0]}. Nice work — keep that heart rate conversational on easy days. (Coach is in test mode.)`
@@ -386,11 +388,18 @@ async function logWorkoutTool(user: User, today: string, input: Record<string, u
     const id = String(raw.exercise_id ?? "");
     if (!getExercise(id)) { skipped.push(id); return []; }
     const sets = (Array.isArray(raw.sets) ? raw.sets : []).slice(0, 30).map((x: Record<string, unknown>) => ({
-      type: "normal" as const, reps: num(x.reps), weight: num(x.weight_lb), minutes: num(x.minutes), seconds: num(x.seconds), done: true,
+      type: "normal" as const, reps: num(x.reps), weight: num(x.weight_lb), minutes: num(x.minutes), seconds: num(x.seconds), miles: num(x.miles), avgHR: num(x.avg_hr), done: true,
     }));
     return [{ exerciseId: id, notes: String(raw.notes ?? "").slice(0, 300), restSec: 90, superset: null, sets: sets.length ? sets : [{ type: "normal" as const, done: true }] }];
   });
   const watch = { avgHR: num(input.avg_hr), maxHR: num(input.max_hr), calories: num(input.calories), durationMin: num(input.duration_min), distanceMi: num(input.distance_mi), source: "Coach" };
+  // the session's cardio numbers belong on its cardio entry too (first cardio exercise without its own numbers)
+  const ci = exercises.findIndex((e) => getExercise(e.exerciseId)?.kind === "cardio");
+  if (ci >= 0) {
+    const s0 = exercises[ci].sets[0];
+    exercises[ci].sets[0] = { ...s0, minutes: s0.minutes ?? (exercises.length === 1 ? watch.durationMin : undefined), miles: s0.miles ?? watch.distanceMi,
+      avgHR: s0.avgHR ?? watch.avgHR, maxHR: s0.maxHR ?? watch.maxHR, calories: s0.calories ?? watch.calories };
+  }
   const hasWatch = !!(watch.avgHR || watch.maxHR || watch.calories || watch.distanceMi);
 
   if (input.add_to_existing === true) {
@@ -414,7 +423,7 @@ async function logWorkoutTool(user: User, today: string, input: Record<string, u
   const w = await saveWorkout(user.id, {
     date: day, name: String(input.name ?? "").trim() || routine?.name || "Workout", routineKey: routine?.key ?? null,
     startedAt: start.toISOString(), endedAt: new Date(start.getTime() + minutes * 60000).toISOString(),
-    exercises: exercises.length ? exercises : [{ exerciseId: "other_cardio", notes: "", restSec: 0, superset: null, sets: [{ type: "normal", minutes: minutes || undefined, done: true }] }],
+    exercises: exercises.length ? exercises : [{ exerciseId: cardioExerciseFor(String(input.name ?? "")), notes: "", restSec: 0, superset: null, sets: [cardioSet(watch)] }],
     notes: String(input.notes ?? "").slice(0, 500) || "Logged with the coach.",
     watch: hasWatch || minutes ? { ...watch, syncedAt: "" } : undefined,
   });

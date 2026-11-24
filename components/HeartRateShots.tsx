@@ -2,18 +2,18 @@
 import { useRef, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import type { ScreenshotWorkout } from "@/lib/schemas";
-import type { Workout } from "@/lib/types";
 import { toDataUrl } from "./ScreenshotImport";
 import { IconImage } from "./icons";
 
-export type Watch = NonNullable<Workout["watch"]>;
+export type { Watch } from "@/lib/cardio";
+import type { Watch } from "@/lib/cardio";
 
 /** Turn one screenshot's numbers into heart-rate data, keeping anything an earlier screenshot already filled in. */
 export function mergeShot(prev: Watch | undefined, w: ScreenshotWorkout): Watch {
   const pos = (x: number) => (x > 0 ? Math.round(x * 10) / 10 : undefined);
   const next: Partial<Watch> = {
     avgHR: pos(w.avgHR), maxHR: pos(w.maxHR), calories: pos(w.activeCalories) ?? pos(w.totalCalories), durationMin: pos(w.durationMin),
-    distanceMi: pos(w.distanceMi), zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source,
+    distanceMi: pos(w.distanceMi), elevationFt: pos(w.elevationFt), pace: w.avgPace || undefined, activity: w.activity || undefined, zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source,
   };
   const clean = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined));
   return { ...(prev ?? {}), ...clean, syncedAt: new Date().toISOString() } as Watch;

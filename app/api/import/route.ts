@@ -5,17 +5,10 @@ import { isDate } from "@/lib/dates";
 import { bad, body, handle, ok } from "@/lib/http";
 import type { ScreenshotWorkout } from "@/lib/schemas";
 import type { Workout } from "@/lib/types";
+import { cardioExerciseFor, cardioNotes, cardioSet, isStrengthActivity } from "@/lib/cardio";
 
 export const maxDuration = 60;
 
-const exerciseFor = (activity: string) => {
-  const a = activity.toLowerCase();
-  if (/zone ?2/.test(a)) return "zone2_cardio";
-  if (/walk|hike/.test(a)) return "brisk_walk";
-  if (/run|jog/.test(a)) return "run";
-  if (/cycl|bike|ride|spin/.test(a)) return "easy_bike";
-  return "other_cardio";
-};
 
 // action "read": screenshot → numbers (nothing saved). action "save": log a new workout or attach to an existing one.
 export const POST = handle(async (req) => {
@@ -40,7 +33,8 @@ export const POST = handle(async (req) => {
     if (!w || typeof w !== "object" || !isDate(w.date)) return bad("Missing workout");
     const n = (x: unknown) => (Number.isFinite(Number(x)) && Number(x) > 0 ? Math.round(Number(x) * 10) / 10 : undefined);
     const watch = { avgHR: n(w.avgHR), maxHR: n(w.maxHR), calories: n(w.activeCalories) ?? n(w.totalCalories), durationMin: n(w.durationMin), distanceMi: n(w.distanceMi),
-      zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source, syncedAt: new Date().toISOString() };
+      zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source,
+      activity: w.activity || undefined, pace: w.avgPace || undefined, elevationFt: n(w.elevationFt), syncedAt: new Date().toISOString() };
     if (typeof b.attachTo === "string" && b.attachTo) {
       const existing = await getWorkout(me.id, b.attachTo);
       if (!existing) return bad("Workout not found", 404);
@@ -58,7 +52,7 @@ export const POST = handle(async (req) => {
     const workout: Workout = {
       id: crypto.randomUUID(), date: w.date, name: `${w.activity || "Workout"} (${w.source})`.slice(0, 80), routineKey: null,
       startedAt: start.toISOString(), endedAt: end.toISOString(),
-      exercises: [{ exerciseId: exerciseFor(w.activity ?? ""), notes: details, restSec: 0, superset: null, sets: [{ type: "normal", minutes: minutes || undefined, done: true }] }],
+      exercises: [{ exerciseId: isStrengthActivity(w.activity) ? "other_cardio" : cardioExerciseFor(w.activity ?? ""), notes: cardioNotes(watch) || details, restSec: 0, superset: null, sets: [cardioSet(watch)] }],
       notes: `Imported from a ${w.source} screenshot.`,
       watch, stats: { volume: 0, sets: 1, prs: [] },
     };

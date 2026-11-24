@@ -8,6 +8,8 @@ const working = (sets: LoggedSet[]) => sets.filter((s) => s.done && s.type !== "
 export type ExercisePoint = {
   date: string;
   workoutId: string;
+  miles?: number;
+  avgHR?: number;
   e1rm?: number;
   topWeight?: number;
   volume?: number;
@@ -44,6 +46,8 @@ export function summarize(ex: LoggedExercise, date: string, workoutId: string): 
       break;
     case "cardio":
       p.minutes = sets.reduce((a, s) => a + (s.minutes ?? 0), 0);
+      p.miles = sets.reduce((a, s) => a + (s.miles ?? 0), 0) || undefined;
+      p.avgHR = max(sets.map((s) => s.avgHR));
       break;
     case "swings":
       p.topSpeed = max(sets.map((s) => s.topSpeed));

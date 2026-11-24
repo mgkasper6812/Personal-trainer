@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import HeartRateShots from "./HeartRateShots";
+import { cardioExerciseFor, cardioNotes, cardioSet, isStrengthActivity, type Watch } from "@/lib/cardio";
 import BackButton from "./BackButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
@@ -183,13 +184,7 @@ export default function Logger() {
       <section className="card" style={{ marginTop: 12 }}>
         <span className="eyebrow">Heart rate &amp; cardio</span>
         <div style={{ marginTop: 8 }}>
-          <HeartRateShots value={w.watch} onChange={(v) => update((x) => {
-            // fill in empty cardio minutes from the screenshot (e.g. Thursday's Zone 2)
-            const mins = v?.durationMin;
-            const exercises = mins ? x.exercises.map((e) => getExercise(e.exerciseId)?.kind === "cardio" && e.sets.length && !e.sets.some((s) => s.done)
-              ? { ...e, sets: e.sets.map((s, i) => (i === 0 ? { ...s, minutes: s.minutes || mins } : s)) } : e) : x.exercises;
-            return { ...x, watch: v, exercises };
-          })} />
+          <HeartRateShots value={w.watch} onChange={(v) => update((x) => ({ ...x, watch: v, exercises: applyCardioShot(x.exercises, v) }))} />
         </div>
       </section>
       <textarea rows={2} placeholder="Workout notes" value={w.notes} onChange={(e) => update((x) => ({ ...x, notes: e.target.value }))} style={{ marginTop: 12 }} />
@@ -295,4 +290,22 @@ function ExerciseCard(props: {
       </div>
     </section>
   );
+}
+
+/**
+ * Log everything a cardio screenshot shows (minutes, miles, heart rate, calories, pace, climb, zones) on the workout's cardio entry:
+ * the plan's cardio exercise if it has one that isn't done yet, else a new one. Strength-workout screenshots only add heart rate.
+ */
+function applyCardioShot(exercises: ActiveExercise[], v: Watch | undefined): ActiveExercise[] {
+  // undo what an earlier screenshot did, so re-reading or removing is clean
+  const base = exercises.filter((e) => e.fromShot !== "added").map((e) => (e.fromShot === "filled"
+    ? { ...e, fromShot: undefined, notes: "", sets: e.sets.map((s, i) => (i === 0 ? { ...s, done: false, miles: undefined, avgHR: undefined, maxHR: undefined, calories: undefined } : s)) } : e));
+  if (!v || isStrengthActivity(v.activity) || !(v.durationMin || v.distanceMi)) return base;
+  const notes = cardioNotes(v);
+  const i = base.findIndex((e) => getExercise(e.exerciseId)?.kind === "cardio" && !e.sets.some((s) => s.done));
+  if (i >= 0) {
+    const e = base[i];
+    return base.map((x, j) => (j === i ? { ...e, fromShot: "filled" as const, notes: [e.notes, notes].filter(Boolean).join(" · "), sets: [cardioSet(v, e.sets[0]), ...e.sets.slice(1).filter((s) => s.done)] } : x));
+  }
+  return [...base, { exerciseId: cardioExerciseFor(v.activity ?? ""), notes, restSec: 0, superset: null, sets: [cardioSet(v)], fromShot: "added" as const }];
 }
