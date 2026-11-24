@@ -17,16 +17,27 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
   const [err, setErr] = useState("");
   const end = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [image, setImage] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null); // a screenshot being imported as a workout
+  const [photos, setPhotos] = useState<string[]>([]);       // photos to send with the next message
+  const thumbs = useRef<Record<string, string[]>>({});       // photos you sent this visit, by message time
 
-  async function pick(file: File | null | undefined) {
-    if (!file || !file.type.startsWith("image/")) return;
-    try { setImage(await toDataUrl(file)); } catch { setErr("Couldn't open that image."); }
+  async function pick(files: Iterable<File> | null | undefined) {
+    const list = [...(files ?? [])].filter((f) => f.type.startsWith("image/") || /\.heic$/i.test(f.name));
+    if (!list.length) return;
+    const added: string[] = [];
+    for (const f of list) {
+      try { added.push(await toDataUrl(f, 1280)); } catch { setErr("Couldn't open one of those images."); }
+    }
+    setPhotos((p) => {
+      const next = [...p, ...added];
+      if (next.length > 4) setErr("Up to 4 photos per message — kept the first 4.");
+      return next.slice(0, 4);
+    });
   }
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      const f = [...(e.clipboardData?.files ?? [])].find((x) => x.type.startsWith("image/"));
-      if (f) { e.preventDefault(); pick(f); }
+      const fs = [...(e.clipboardData?.files ?? [])].filter((x) => x.type.startsWith("image/"));
+      if (fs.length) { e.preventDefault(); pick(fs); }
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
@@ -42,13 +53,21 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [lines, busy]);
 
   const sendRef = useRef<((m: string) => void) | null>(null);
-  async function send(msg: string) {
+  async function send(msg: string, withPhotos: string[] = []) {
     const t = msg.trim();
-    if (!t || busy) return;
-    setErr(""); setBusy(true); setText("");
-    setLines((l) => [...(l ?? []), { role: "me", text: t, at: new Date().toISOString() }]);
-    try { setLines((await api<{ display: ChatLine[] }>("/api/chat", { body: { text: t, date: localDate() } })).display); }
-    catch (e) { setErr((e as Error).message); setText(t); setLines((l) => (l ?? []).slice(0, -1)); }
+    if ((!t && !withPhotos.length) || busy) return;
+    setErr(""); setBusy(true); setText(""); setPhotos([]);
+    const localAt = new Date().toISOString();
+    if (withPhotos.length) thumbs.current[localAt] = withPhotos;
+    setLines((l) => [...(l ?? []), { role: "me", text: t, at: localAt, photos: withPhotos.length || undefined }]);
+    try {
+      const display = (await api<{ display: ChatLine[] }>("/api/chat", { body: { text: t, date: localDate(), images: withPhotos } })).display;
+      if (withPhotos.length) {
+        const mine = [...display].reverse().find((l) => l.role === "me" && l.photos);
+        if (mine) { thumbs.current[mine.at] = withPhotos; delete thumbs.current[localAt]; }
+      }
+      setLines(display);
+    } catch (e) { setErr((e as Error).message); setText(t); setPhotos(withPhotos); setLines((l) => (l ?? []).slice(0, -1)); }
     setBusy(false);
   }
 
@@ -56,15 +75,18 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
   const lastCoach = lines ? lines.length - 1 - [...lines].reverse().findIndex((l) => l.role === "coach") : -1;
   const KIND: Record<string, string> = { review: "Morning report", nudge: "Check-in", workout: "Workout feedback" };
   return (
-    <main className="chat-page">
+    <main className="chat-page" style={photos.length ? { paddingBottom: "calc(env(safe-area-inset-bottom) + 290px)" } : undefined}>
       <h1 style={{ marginBottom: 4 }}>Coach</h1>
-      <p className="small muted" style={{ marginTop: 0 }}>Ask anything, tell it what to change, or tap the image button to import an Apple Fitness or Strava screenshot. {role === "athlete" ? "Your chats are private." : "Private to you."}</p>
+      <p className="small muted" style={{ marginTop: 0 }}>Ask anything, tell it what to change, or tap the photo button to send up to 4 photos — a plate, a menu, a nutrition label, or an Apple Fitness or Strava screenshot. {role === "athlete" ? "Your chats are private." : "Private to you."}</p>
       {!lines && !err && <p className="muted"><span className="spinner" />Loading…</p>}
       <div className="chat">
         {lines?.length === 0 && <div className="bubble coach">Hey — I know your plan, check-ins and progress. What do you need?</div>}
         {lines?.map((l, i) => (
           <div key={i} className={`bubble ${l.role} ${l.kind ? "proactive" : ""}`}>
             {l.kind && <span className="bubble-kind">{KIND[l.kind]}</span>}
+            {l.photos ? (thumbs.current[l.at]
+              ? <span className="bubble-photos">{thumbs.current[l.at].map((ph, j) => (/* eslint-disable-next-line @next/next/no-img-element */ <img key={j} src={ph} alt={`Photo ${j + 1} you sent`} />))}</span>
+              : <span className="bubble-photo-note"><IconImage size={14} />{l.photos} photo{l.photos > 1 ? "s" : ""}</span>) : null}
             {l.text}
             {l.actions && <div className="chat-actions">{l.actions.map((a) => <span key={a} className="chat-action"><IconCheck size={14} />{a}</span>)}</div>}
             {i === lastCoach && !busy && l.replies && l.replies.length > 0 && (
@@ -82,12 +104,29 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
           {SUGGEST[role].map((s) => <button key={s} className="chip" onClick={() => send(s)}>{s}</button>)}
         </div>
       )}
-      <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(text); }}>
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
-        <button type="button" className="attach-btn" aria-label="Import a workout screenshot (Apple Fitness, Strava)" onClick={() => fileRef.current?.click()}><IconImage size={22} /></button>
-        <textarea rows={1} value={text} placeholder="Message your coach" aria-label="Message your coach" onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(text); } }} />
-        <button className="primary" disabled={busy || !text.trim()}>Send</button>
+      <form className="chat-composer" onSubmit={(e) => { e.preventDefault(); send(text, photos); }}>
+        {photos.length > 0 && (
+          <div className="composer-tray">
+            <div className="photo-tray" style={{ marginTop: 0 }} aria-label="Photos to send">
+              {photos.map((ph, i) => (
+                <div key={i} className="tray-item">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={ph} alt={`Photo ${i + 1} to send`} />
+                  <button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => setPhotos(photos.filter((_, j) => j !== i))}>×</button>
+                </div>
+              ))}
+              {photos.length < 4 && <button type="button" className="tray-add" aria-label="Add another photo" onClick={() => fileRef.current?.click()}>+</button>}
+            </div>
+            <button type="button" className="link small" onClick={() => { setImage(photos[0]); setPhotos(photos.slice(1)); }}>
+              Workout screenshot? Import {photos.length > 1 ? "the first one " : ""}as a workout
+            </button>
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+        <button type="button" className="attach-btn" aria-label="Add photos (food, labels, workout screenshots)" onClick={() => fileRef.current?.click()}><IconImage size={22} /></button>
+        <textarea rows={1} value={text} placeholder={photos.length ? "Ask about your photos (optional)" : "Message your coach"} aria-label="Message your coach" onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(text, photos); } }} />
+        <button className="primary" disabled={busy || (!text.trim() && !photos.length)}>Send</button>
       </form>
     </main>
   );

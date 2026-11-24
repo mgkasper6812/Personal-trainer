@@ -310,7 +310,7 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .chat-action { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px; background: var(--soft); color: var(--accent); }
 .chat-composer { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom) + 76px); z-index: 8; display: flex; gap: 8px; padding: 10px 16px;
   background: var(--bg); border-top: 1px solid var(--line); max-width: 640px; margin: 0 auto; }
-.chat-composer textarea { resize: none; min-height: 46px; max-height: 120px; }
+.chat-composer textarea { flex: 1 1 0; min-width: 0; resize: none; min-height: 46px; max-height: 120px; }
 .chat-composer button { flex: none; }
 /* ---- Exercise demos & guides ---- */
 .demo { margin: 12px 0; }
@@ -401,3 +401,10 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .tab-badge-wrap { position: relative; display: inline-flex; }
 .tab-badge { position: absolute; top: -4px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff;
   font-size: 11px; font-weight: 800; display: grid; place-items: center; line-height: 1; }
+/* ---- Photos in coach chat ---- */
+.chat-composer { flex-wrap: wrap; }
+.composer-tray { flex-basis: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-top: 6px; }
+.composer-tray .link { padding: 0; min-height: 0; }
+.bubble-photos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.bubble-photos img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; }
+.bubble-photo-note { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; opacity: .8; margin-bottom: 4px; }

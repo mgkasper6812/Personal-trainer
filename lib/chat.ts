@@ -12,7 +12,8 @@ import { evaluate } from "./rules";
 import type { User } from "./types";
 
 type Msg = Anthropic.Beta.BetaMessageParam;
-export type ChatLine = { role: "me" | "coach"; text: string; actions?: string[]; at: string; kind?: "review" | "nudge" | "workout"; replies?: string[] };
+export type ChatLine = { role: "me" | "coach"; text: string; actions?: string[]; at: string; kind?: "review" | "nudge" | "workout"; replies?: string[]; photos?: number };
+export type ChatImage = { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string };
 export type ChatState = { messages: Msg[]; display: ChatLine[]; pending?: string[]; lastSeen?: string };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -52,6 +53,12 @@ context doesn't have something, say so — never invent data. When the user asks
 the tool, then confirm exactly what changed. Never claim a change you didn't make. For medical questions, give general guidance
 and point to their doctor. Act like a real coach: notice patterns, give specific advice and suggestions (what to eat next, how to adjust a
 session, how to prep for tonight), ask a short follow-up question when it helps, and hold them to what they said they'd do.
+PHOTOS: the user can attach up to 4 photos. Look at them carefully and say what you see. Food (a plate, a menu, a restaurant
+dish, a package or a Nutrition Facts label): name each item with an estimated portion and its nutrition, then say how it fits what's
+left for today from foodToday (cite the remaining numbers) and suggest a better swap or portion if one helps. Several photos of one meal
+are the same meal — never count a food twice; if a label matches a pictured food, use the label's numbers. Only call log_food when they
+say they ate it or ask you to log it; otherwise offer to (put "Log it" in the suggestions). Workout screenshots, form photos, gym
+equipment or anything else: answer about what's actually in the picture. If a photo is unclear, say what you'd need to see.
 End EVERY reply with a final line exactly like: "Suggestions: <reply 1> | <reply 2> | <reply 3>" — 2–3 short things the user might say next.
 Exercise ids you may use with swap_exercise: ${EXERCISES.map((e) => e.id).join(", ")}.`;
 
@@ -246,26 +253,36 @@ async function runTool(user: User, date: string, name: string, input: Record<str
 }
 
 /** One chat turn: append the user's message (with today's context), run the tool loop, save append-only history. */
-export async function chatTurn(user: User, text: string, date: string): Promise<ChatState> {
+export async function chatTurn(user: User, text: string, date: string, images: ChatImage[] = []): Promise<ChatState> {
   const state = await getChat(user.id);
   const now = new Date().toISOString();
-  state.display.push({ role: "me", text, at: now });
+  state.display.push({ role: "me", text, at: now, photos: images.length || undefined });
   const ctx = await context(user, date);
   if (state.pending?.length) { ctx.coachMessagesYouSentSinceLastReply = state.pending; state.pending = []; }
-  const messages: Msg[] = [...state.messages, {
+  const photoBlocks: Anthropic.Beta.BetaContentBlockParam[] = images.flatMap((img, i) => [
+    ...(images.length > 1 ? [{ type: "text" as const, text: `Photo ${i + 1}:` }] : []),
+    { type: "image" as const, source: { type: "base64" as const, media_type: img.mediaType, data: img.data } },
+  ]);
+  const turn: Msg = {
     role: "user",
-    content: [{ type: "text", text: `<context>\n${JSON.stringify(ctx)}\n</context>` }, { type: "text", text }],
-  }];
+    content: [{ type: "text", text: `<context>\n${JSON.stringify(ctx)}\n</context>` }, ...photoBlocks, { type: "text", text }],
+  };
+  const messages: Msg[] = [...state.messages, turn];
   const actions: string[] = [];
   let reply = "";
 
   if (mockMode()) {
     if (/thursday/i.test(text) && /zone/i.test(text)) actions.push((await runTool(user, date, "set_day_plan", { day: "Thu", mode: "routine", routine_name: "Zone 2 Cardio" })).action!);
-    reply = (actions.length ? "Done — Thursday is now Zone 2 Cardio. Keep it conversational, about 40 minutes." : "Got it. (Coach is in test mode.)")
+    reply = (actions.length ? "Done — Thursday is now Zone 2 Cardio. Keep it conversational, about 40 minutes."
+      : images.length ? `I see ${images.length} photo${images.length > 1 ? "s" : ""}: grilled chicken (~6 oz, 50 g protein, 280 cal) and rice (~1 cup, 45 g carbs, 210 cal). That leaves you about 60 g of protein for the day. (Coach is in test mode.)`
+      : "Got it. (Coach is in test mode.)")
       + "\nSuggestions: What should I eat tonight? | Adjust today's workout | How am I doing this week?";
     messages.push({ role: "assistant", content: [{ type: "text", text: reply }] });
   } else {
-    const system = [{ type: "text" as const, text: `${coachSystem(user.role)}\n${CHAT_RULES}`, cache_control: { type: "ephemeral" as const } }];
+    const athletePhotos = user.role === "athlete"
+      ? "\nFor the athlete's food photos: talk about fueling for performance only (protein for recovery, carbs for energy, hydration, timing around practice) — never calories, weight or body size."
+      : "";
+    const system = [{ type: "text" as const, text: `${coachSystem(user.role)}\n${CHAT_RULES}${athletePhotos}`, cache_control: { type: "ephemeral" as const } }];
     for (let i = 0; i < 6; i++) {
       let res: Anthropic.Beta.BetaMessage;
       try {
@@ -304,6 +321,10 @@ export async function chatTurn(user: User, text: string, date: string): Promise<
     }
   }
 
+  // Photos are sent once, for this turn only: keep a short note in the saved history instead of the image data.
+  if (images.length) turn.content = (turn.content as Anthropic.Beta.BetaContentBlockParam[]).filter((b) => b.type !== "image")
+    .map((b) => (b.type === "text" && /^Photo \d+:$/.test(b.text) ? { ...b, text: `${b.text} [image no longer attached — see your reply for what it showed]` } : b))
+    .concat(images.length === 1 ? [{ type: "text", text: "[The user attached a photo here; it is no longer attached — see your reply for what it showed.]" }] : []);
   const split = splitReplies(reply || "Done.");
   state.display.push({ role: "coach", text: split.text || "Done.", actions: actions.length ? actions : undefined, replies: split.replies.length ? split.replies : undefined, at: new Date().toISOString() });
   state.lastSeen = new Date().toISOString();
