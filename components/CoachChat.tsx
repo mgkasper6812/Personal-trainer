@@ -6,8 +6,8 @@ import { IconCheck, IconImage } from "./icons";
 import ScreenshotImport, { toDataUrl } from "./ScreenshotImport";
 
 const SUGGEST = {
-  parent: ["How am I doing this week?", "Make Thursday Zone 2 cardio", "I'm sore — adjust today", "What should I eat tonight?", "Log a protein shake for breakfast"],
-  athlete: ["What should I focus on today?", "My arm feels off", "Swap today's lift — no gym access", "How do I raise my bat speed?"],
+  parent: ["How am I doing this week?", "Log my workout", "Make Thursday Zone 2 cardio", "I'm sore — adjust today", "What should I eat tonight?", "Log a protein shake for breakfast"],
+  athlete: ["Log my workout", "What should I focus on today?", "My arm feels off", "Swap today's lift — no gym access", "How do I raise my bat speed?"],
 };
 
 export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
@@ -46,7 +46,9 @@ export default function CoachChat({ role }: { role: "parent" | "athlete" }) {
   useEffect(() => {
     api<{ display: ChatLine[] }>("/api/chat").then((r) => {
       setLines(r.display);
-      const say = new URLSearchParams(window.location.search).get("say");
+      const q = new URLSearchParams(window.location.search);
+      const say = q.get("say"), draft = q.get("draft");
+      if (draft) { window.history.replaceState(null, "", "/coach"); setText(draft); setTimeout(() => document.querySelector<HTMLTextAreaElement>(".chat-composer textarea")?.focus(), 50); }
       if (say) { window.history.replaceState(null, "", "/coach"); setTimeout(() => sendRef.current?.(say), 0); }
     }, (e) => setErr(e.message));
   }, []);

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import HeartRateShots from "./HeartRateShots";
 import BackButton from "./BackButton";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
@@ -135,7 +136,7 @@ export default function Logger() {
     try {
       const body: Partial<Workout> = {
         id: w.id, date: w.date, name: w.name, routineKey: w.routineKey, startedAt: w.startedAt, endedAt: new Date().toISOString(),
-        notes: w.notes,
+        notes: w.notes, watch: w.watch,
         exercises: w.exercises.map(({ target: _t, hint: _h, ...e }) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length),
       };
       const r = await api<{ workout: Workout }>("/api/workouts", { body });
@@ -179,6 +180,18 @@ export default function Logger() {
       {info && <ExerciseSheet id={info} onClose={() => setInfo(null)} />}
 
       <button className="wide" onClick={() => setPicker({ mode: "add" })}>+ Add exercise</button>
+      <section className="card" style={{ marginTop: 12 }}>
+        <span className="eyebrow">Heart rate &amp; cardio</span>
+        <div style={{ marginTop: 8 }}>
+          <HeartRateShots value={w.watch} onChange={(v) => update((x) => {
+            // fill in empty cardio minutes from the screenshot (e.g. Thursday's Zone 2)
+            const mins = v?.durationMin;
+            const exercises = mins ? x.exercises.map((e) => getExercise(e.exerciseId)?.kind === "cardio" && e.sets.length && !e.sets.some((s) => s.done)
+              ? { ...e, sets: e.sets.map((s, i) => (i === 0 ? { ...s, minutes: s.minutes || mins } : s)) } : e) : x.exercises;
+            return { ...x, watch: v, exercises };
+          })} />
+        </div>
+      </section>
       <textarea rows={2} placeholder="Workout notes" value={w.notes} onChange={(e) => update((x) => ({ ...x, notes: e.target.value }))} style={{ marginTop: 12 }} />
       <button className="wide danger-text" onClick={discard} style={{ marginTop: 12 }}>Discard workout</button>
 

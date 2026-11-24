@@ -1,4 +1,5 @@
 "use client";
+import HeartRateShots, { WatchStats, type Watch } from "./HeartRateShots";
 import Link from "next/link";
 import BackButton from "./BackButton";
 import { useEffect, useState } from "react";
@@ -28,6 +29,10 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
     const input = JSON.stringify({ id: w.id, start: w.startedAt, end: w.endedAt });
     const back = window.location.href.replace("?done=1", "");
     window.location.href = `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}&input=text&text=${encodeURIComponent(input)}&x-success=${encodeURIComponent(back)}`;
+  }
+  async function saveWatch(v: Watch | undefined) {
+    const x = await api<{ workout: Workout }>(`/api/workouts/${w.id}`, { method: "PATCH", body: { watch: v ?? null } });
+    setR({ ...r!, workout: x.workout });
   }
   async function del() {
     if (!confirm("Delete this workout?")) return;
@@ -61,18 +66,15 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
       )}
 
       <div className="card" style={{ marginTop: 14 }}>
-        <h2 className="row" style={{ gap: 8 }}><IconWatch size={20} />Apple Watch</h2>
-        {w.watch ? (
-          <div className="stats">
-            {w.watch.avgHR && <div className="stat"><b>{w.watch.avgHR}</b>avg bpm</div>}
-            {w.watch.maxHR && <div className="stat"><b>{w.watch.maxHR}</b>max bpm</div>}
-            {w.watch.calories && <div className="stat"><b>{Math.round(w.watch.calories)}</b>active kcal</div>}
-          </div>
-        ) : r.self ? (<>
-          <p className="small muted">Recorded this on your Watch? Pull heart rate and calories from Apple Health.</p>
-          <button className="primary wide" onClick={syncWatch}>Add Watch data</button>
-          <p className="small muted">First time? <Link href="/settings#watch">Set up the Shortcut</Link> (2 minutes).</p>
-        </>) : <p className="small muted">No Watch data.</p>}
+        <h2 className="row" style={{ gap: 8 }}><IconWatch size={20} />Heart rate &amp; cardio</h2>
+        {r.self ? (<>
+          <HeartRateShots value={w.watch} label="Add from screenshot" onChange={saveWatch} />
+          {!w.watch && (<>
+            <p className="small muted" style={{ marginBottom: 6 }}>Or pull it from Apple Health:</p>
+            <button className="wide" onClick={syncWatch}>Add Watch data</button>
+            <p className="small muted">First time? <Link href="/settings#watch">Set up the Shortcut</Link> (2 minutes).</p>
+          </>)}
+        </>) : w.watch ? <WatchStats w={w.watch} /> : <p className="small muted">No heart-rate data.</p>}
       </div>
 
       {w.stats.prs.length > 0 && (

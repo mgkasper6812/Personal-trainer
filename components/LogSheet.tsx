@@ -4,7 +4,7 @@ import { api, localDate } from "@/lib/client";
 import type { Meal } from "@/lib/data";
 import { loadActive, startToday } from "@/lib/workout-client";
 import FoodLogger from "./FoodLogger";
-import { IconCamera, IconCheck, IconClose, IconImage, IconPlay, IconScale, IconTrain } from "./icons";
+import { IconCamera, IconChat, IconCheck, IconClose, IconImage, IconPlay, IconScale, IconTrain } from "./icons";
 import ScreenshotImport, { toDataUrl } from "./ScreenshotImport";
 import { NumberInput } from "./ui";
 
@@ -60,6 +60,7 @@ export default function LogSheet({ role }: { role: "parent" | "athlete" }) {
             <button className="log-tile" onClick={() => go("/today?checkin=1")}><IconCheck size={24} /><b>Check in</b><span>30 seconds</span></button>
             <button className="log-tile" onClick={() => setView("import")}><IconImage size={24} /><b>Workout screenshot</b><span>Apple Fitness, Strava</span></button>
             <button className="log-tile" onClick={() => go("/today#habits")}><IconCheck size={24} /><b>Habits</b><span>Tick off today</span></button>
+            <button className="log-tile" onClick={() => go(`/coach?draft=${encodeURIComponent("Log my workout: ")}`)}><IconChat size={24} /><b>Tell the coach</b><span>&ldquo;Walked 30 min&rdquo; or squats 3×8 @ 185</span></button>
           </div>
         )}
 

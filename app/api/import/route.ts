@@ -39,11 +39,14 @@ export const POST = handle(async (req) => {
     const w = b.workout;
     if (!w || typeof w !== "object" || !isDate(w.date)) return bad("Missing workout");
     const n = (x: unknown) => (Number.isFinite(Number(x)) && Number(x) > 0 ? Math.round(Number(x) * 10) / 10 : undefined);
-    const watch = { avgHR: n(w.avgHR), maxHR: n(w.maxHR), calories: n(w.activeCalories) ?? n(w.totalCalories), durationMin: n(w.durationMin), syncedAt: new Date().toISOString() };
+    const watch = { avgHR: n(w.avgHR), maxHR: n(w.maxHR), calories: n(w.activeCalories) ?? n(w.totalCalories), durationMin: n(w.durationMin), distanceMi: n(w.distanceMi),
+      zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source, syncedAt: new Date().toISOString() };
     if (typeof b.attachTo === "string" && b.attachTo) {
       const existing = await getWorkout(me.id, b.attachTo);
       if (!existing) return bad("Workout not found", 404);
-      existing.watch = watch;
+      const prev = existing.watch ?? { syncedAt: watch.syncedAt };
+      // a second screenshot (e.g. the heart-rate zones page) fills in what the first one didn't show
+      existing.watch = Object.fromEntries(Object.entries({ ...prev, ...Object.fromEntries(Object.entries(watch).filter(([, v]) => v !== undefined)) })) as typeof watch;
       await putWorkout(me.id, existing);
       return ok({ id: existing.id, summary: `Added ${w.source} data to ${existing.name}: ${watch.durationMin ?? "?"} min, avg HR ${watch.avgHR ?? "?"}, ${watch.calories ?? "?"} kcal.` });
     }

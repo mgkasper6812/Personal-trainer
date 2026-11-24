@@ -19,6 +19,7 @@ export type ActiveWorkout = {
   restEndsAt: number | null;
   restTotal: number;
   notes: string;
+  watch?: import("./types").Workout["watch"];
 };
 
 const KEY = "ft-active-workout";

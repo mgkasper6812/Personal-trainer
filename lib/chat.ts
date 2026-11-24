@@ -2,14 +2,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import { CoachError, MODEL, client, mockMode, recordUsage } from "./coach";
 import {
   addAlert, getCheckIn, getCustomHabits, getHabitLog, getHealthBio, getMealPlan, getProfile, getProgram, getProteinLog,
-  getRecipe, getWeights, getYesterdayCheckIn, listRecipes, listWorkouts, saveCustomHabits, saveMealPlan, saveProgram, saveProteinLog,
+  getRecipe, getWeights, getYesterdayCheckIn, listRecipes, getWorkout, listWorkouts, saveCustomHabits, saveMealPlan, saveProgram, saveProteinLog,
 } from "./data";
 import { db } from "./db";
-import { addDays, mondayOf, weekdayName } from "./dates";
+import { addDays, isDate, mondayOf, weekdayName } from "./dates";
 import { EXERCISES, getExercise } from "./exercises";
 import { coachSystem } from "./prompts";
 import { evaluate } from "./rules";
-import type { User } from "./types";
+import type { LoggedExercise, User, Workout } from "./types";
+import { saveWorkout } from "./workout-save";
 
 type Msg = Anthropic.Beta.BetaMessageParam;
 export type ChatLine = { role: "me" | "coach"; text: string; actions?: string[]; at: string; kind?: "review" | "nudge" | "workout"; replies?: string[]; photos?: number };
@@ -53,6 +54,10 @@ context doesn't have something, say so — never invent data. When the user asks
 the tool, then confirm exactly what changed. Never claim a change you didn't make. For medical questions, give general guidance
 and point to their doctor. Act like a real coach: notice patterns, give specific advice and suggestions (what to eat next, how to adjust a
 session, how to prep for tonight), ask a short follow-up question when it helps, and hold them to what they said they'd do.
+LOGGING WORKOUTS: when they tell you about a workout they did ("did Strength A, squats 3x8 at 185…", "walked 30 min") or send a
+workout screenshot (Apple Fitness, Strava, Watch), call log_workout. If the day's workout is already logged (recentWorkouts) and they
+are sending its heart-rate or cardio numbers, use add_to_existing. Log only what they said or showed; if key details are missing for a
+lift (weights, reps), log what you have and ask. After logging, react like a coach: one specific note on the effort or the numbers.
 PHOTOS: the user can attach up to 4 photos. Look at them carefully and say what you see. Food (a plate, a menu, a restaurant
 dish, a package or a Nutrition Facts label): name each item with an estimated portion and its nutrition, then say how it fits what's
 left for today from foodToday (cite the remaining numbers) and suggest a better swap or portion if one helps. Several photos of one meal
@@ -87,6 +92,29 @@ function tools(role: User["role"]): Anthropic.Beta.BetaTool[] {
       description: "Add a daily habit to the user's checklist.",
       strict: true,
       input_schema: { type: "object", additionalProperties: false, required: ["name"], properties: { name: { type: "string" } } },
+    },
+    {
+      name: "log_workout",
+      description: "Log a workout the user did (described in words or shown in a screenshot), or add heart-rate/cardio numbers to a workout already logged that day. Use 0 for any number you don't know; never invent sets they didn't mention.",
+      strict: true,
+      input_schema: { type: "object", additionalProperties: false,
+        required: ["date", "name", "routine_name", "duration_min", "exercises", "avg_hr", "max_hr", "calories", "distance_mi", "add_to_existing", "notes"],
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD (today's date from context unless they said otherwise)" },
+          name: { type: "string", description: "e.g. 'Strength A', 'Zone 2 bike', 'Evening walk'" },
+          routine_name: { type: "string", description: "The program routine this was, if any (exact name from context), else ''" },
+          duration_min: { type: "number" },
+          exercises: { type: "array", items: { type: "object", additionalProperties: false, required: ["exercise_id", "notes", "sets"], properties: {
+            exercise_id: { type: "string", description: "An id from the exercise list in your instructions; other_cardio for cardio that doesn't fit" },
+            notes: { type: "string" },
+            sets: { type: "array", items: { type: "object", additionalProperties: false, required: ["reps", "weight_lb", "minutes", "seconds"], properties: {
+              reps: { type: "integer" }, weight_lb: { type: "number" }, minutes: { type: "number" }, seconds: { type: "integer" },
+            } } },
+          } } },
+          avg_hr: { type: "integer" }, max_hr: { type: "integer" }, calories: { type: "integer", description: "Active calories" }, distance_mi: { type: "number" },
+          add_to_existing: { type: "boolean", description: "True to add these heart-rate/cardio numbers (and any exercises) to the most recent workout already logged on that date instead of creating a new one" },
+          notes: { type: "string" },
+        } },
     },
   ];
   if (role === "parent") t.push(
@@ -140,7 +168,7 @@ async function context(user: User, date: string) {
     todaysSession: routine?.name ?? slot?.note ?? "Rest",
     checkIn: checkIn ? { ...checkIn, note: undefined } : "not done",
     readiness: readiness ? { status: readiness.status, reasons: readiness.reasons } : null,
-    recentWorkouts: workouts.slice(0, 5).map((w) => `${w.date} ${w.name} (${w.sets} sets${w.prs ? `, ${w.prs} PR` : ""})`),
+    recentWorkouts: workouts.slice(0, 5).map((w) => `${w.date} ${w.name} (${w.sets} sets${w.prs ? `, ${w.prs} PR` : ""}${w.watch ? ", has heart-rate data" : ", no heart-rate data"})`),
     habits: { list: [...(p?.dailyHabits ?? []), ...habits], doneToday: habitLog },
     profile,
   };
@@ -171,6 +199,7 @@ async function context(user: User, date: string) {
 
 async function runTool(user: User, date: string, name: string, input: Record<string, unknown>): Promise<{ result: string; action?: string }> {
   const dayIndex = (d: unknown) => DAYS.indexOf(String(d));
+  if (name === "log_workout") return logWorkoutTool(user, date, input);
   if (name === "set_day_plan") {
     const rec = await getProgram(user.id);
     if (!rec) return { result: "No program yet." };
@@ -272,8 +301,15 @@ export async function chatTurn(user: User, text: string, date: string, images: C
   let reply = "";
 
   if (mockMode()) {
+    if (/\b(log|did|finished|logged|add)\b/i.test(text) && /(workout|walk|run|bike|squat|lift|cardio|heart rate|hr)/i.test(text)) {
+      const add = /heart rate|\bhr\b|add .* to/i.test(text);
+      actions.push((await runTool(user, date, "log_workout", add
+        ? { date, name: "", routine_name: "", duration_min: 32, exercises: [], avg_hr: 128, max_hr: 151, calories: 310, distance_mi: 0, add_to_existing: true, notes: "" }
+        : { date, name: "Evening walk", routine_name: "", duration_min: 30, exercises: [{ exercise_id: "brisk_walk", notes: "", sets: [{ reps: 0, weight_lb: 0, minutes: 30, seconds: 0 }] }], avg_hr: 112, max_hr: 131, calories: 180, distance_mi: 1.7, add_to_existing: false, notes: "" })).action ?? "Nothing logged");
+    }
     if (/thursday/i.test(text) && /zone/i.test(text)) actions.push((await runTool(user, date, "set_day_plan", { day: "Thu", mode: "routine", routine_name: "Zone 2 Cardio" })).action!);
-    reply = (actions.length ? "Done — Thursday is now Zone 2 Cardio. Keep it conversational, about 40 minutes."
+    reply = (actions.some((a) => /workout|Added/.test(a)) ? `${actions[0]}. Nice work — keep that heart rate conversational on easy days. (Coach is in test mode.)`
+      : actions.length ? "Done — Thursday is now Zone 2 Cardio. Keep it conversational, about 40 minutes."
       : images.length ? `I see ${images.length} photo${images.length > 1 ? "s" : ""}: grilled chicken (~6 oz, 50 g protein, 280 cal) and rice (~1 cup, 45 g carbs, 210 cal). That leaves you about 60 g of protein for the day. (Coach is in test mode.)`
       : "Got it. (Coach is in test mode.)")
       + "\nSuggestions: What should I eat tonight? | Adjust today's workout | How am I doing this week?";
@@ -339,4 +375,52 @@ export async function chatTurn(user: User, text: string, date: string, images: C
   state.display = state.display.slice(-200);
   await saveChat(user.id, state);
   return state;
+}
+
+/** The coach's log_workout tool: a new workout, or heart-rate/cardio numbers (and extra exercises) added to one already logged. */
+async function logWorkoutTool(user: User, today: string, input: Record<string, unknown>): Promise<{ result: string; action?: string }> {
+  const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : undefined);
+  const day = isDate(String(input.date)) && String(input.date) <= addDays(today, 1) ? String(input.date) : today;
+  const skipped: string[] = [];
+  const exercises: LoggedExercise[] = (Array.isArray(input.exercises) ? input.exercises : []).flatMap((raw: Record<string, unknown>) => {
+    const id = String(raw.exercise_id ?? "");
+    if (!getExercise(id)) { skipped.push(id); return []; }
+    const sets = (Array.isArray(raw.sets) ? raw.sets : []).slice(0, 30).map((x: Record<string, unknown>) => ({
+      type: "normal" as const, reps: num(x.reps), weight: num(x.weight_lb), minutes: num(x.minutes), seconds: num(x.seconds), done: true,
+    }));
+    return [{ exerciseId: id, notes: String(raw.notes ?? "").slice(0, 300), restSec: 90, superset: null, sets: sets.length ? sets : [{ type: "normal" as const, done: true }] }];
+  });
+  const watch = { avgHR: num(input.avg_hr), maxHR: num(input.max_hr), calories: num(input.calories), durationMin: num(input.duration_min), distanceMi: num(input.distance_mi), source: "Coach" };
+  const hasWatch = !!(watch.avgHR || watch.maxHR || watch.calories || watch.distanceMi);
+
+  if (input.add_to_existing === true) {
+    const latest = (await listWorkouts(user.id)).find((w) => w.date === day);
+    const existing = latest ? await getWorkout(user.id, latest.id) : null;
+    if (!existing) return { result: `No workout is logged on ${day} yet — log it as a new workout instead.` };
+    const merged = await saveWorkout(user.id, {
+      ...existing, exercises: [...existing.exercises, ...exercises],
+      watch: { ...(existing.watch ?? {}), ...Object.fromEntries(Object.entries(watch).filter(([, v]) => v !== undefined)) } as Workout["watch"],
+    });
+    const what = [hasWatch && "heart-rate data", exercises.length && `${exercises.length} exercise${exercises.length > 1 ? "s" : ""}`].filter(Boolean).join(" and ") || "nothing new";
+    return { result: `Added ${what} to "${merged.name}" (${day}).${skipped.length ? ` Unknown exercise ids skipped: ${skipped.join(", ")}.` : ""}`, action: `Added ${what} to ${merged.name}` };
+  }
+
+  if (!exercises.length && !watch.durationMin) return { result: "Nothing to log — need at least one exercise or a duration." };
+  const rec = await getProgram(user.id);
+  const rname = String(input.routine_name ?? "").trim().toLowerCase();
+  const routine = rname ? rec?.program.routines.find((r) => r.name.toLowerCase() === rname) : undefined;
+  const minutes = watch.durationMin ?? 0;
+  const start = new Date(`${day}T12:00:00`);
+  const w = await saveWorkout(user.id, {
+    date: day, name: String(input.name ?? "").trim() || routine?.name || "Workout", routineKey: routine?.key ?? null,
+    startedAt: start.toISOString(), endedAt: new Date(start.getTime() + minutes * 60000).toISOString(),
+    exercises: exercises.length ? exercises : [{ exerciseId: "other_cardio", notes: "", restSec: 0, superset: null, sets: [{ type: "normal", minutes: minutes || undefined, done: true }] }],
+    notes: String(input.notes ?? "").slice(0, 500) || "Logged with the coach.",
+    watch: hasWatch || minutes ? { ...watch, syncedAt: "" } : undefined,
+  });
+  const prs = w.stats.prs.map((p) => `${getExercise(p.exerciseId)?.name} ${p.label} ${p.value} ${p.unit}`);
+  return {
+    result: `Logged "${w.name}" on ${day}: ${w.exercises.length} exercise(s), ${w.stats.sets} sets${w.stats.volume ? `, ${w.stats.volume} lb volume` : ""}${prs.length ? `. New records: ${prs.join("; ")}` : ""}.${skipped.length ? ` Unknown exercise ids skipped: ${skipped.join(", ")}.` : ""}`,
+    action: `Logged workout: ${w.name}${minutes ? ` · ${minutes} min` : ""}${watch.avgHR ? ` · avg ${watch.avgHR} bpm` : ""}`,
+  };
 }

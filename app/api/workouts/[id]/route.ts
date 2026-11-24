@@ -1,5 +1,6 @@
 import { requireUser, resolveTarget } from "@/lib/auth";
-import { deleteWorkout, getWorkout } from "@/lib/data";
+import { deleteWorkout, getWorkout, putWorkout } from "@/lib/data";
+import { cleanWatch } from "@/lib/workout-save";
 import { bad, ok } from "@/lib/http";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -18,4 +19,16 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   if (me instanceof Response) return me;
   await deleteWorkout(me.id, (await params).id);
   return ok({ ok: true });
+}
+
+// Set or clear a workout's heart-rate data (read from screenshots on the summary screen).
+export async function PATCH(req: Request, { params }: Ctx) {
+  const me = await requireUser();
+  if (me instanceof Response) return me;
+  const w = await getWorkout(me.id, (await params).id);
+  if (!w) return bad("Not found", 404);
+  const b = (await req.json().catch(() => ({}))) as { watch?: unknown };
+  w.watch = b.watch === null ? undefined : cleanWatch(b.watch) ?? w.watch;
+  await putWorkout(me.id, w);
+  return ok({ workout: w });
 }
