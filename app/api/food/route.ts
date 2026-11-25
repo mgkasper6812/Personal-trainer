@@ -1,6 +1,6 @@
 import { requireUser, resolveTarget } from "@/lib/auth";
 import {
-  getFoodLog, getMealPlan, getProfile, getProgram, getRecipe, getSavedFoods, saveFoodLog, saveSavedFoods,
+  getFoodLog, getMealPlan, getProfile, getProgram, getRecipe, getSavedFoods, saveFoodLog, saveSavedFoods, quickFoodsManaged, setQuickFoodsManaged,
   type FoodEntry, type Meal, type SavedFood,
 } from "@/lib/data";
 import { addDays, isDate, mondayOf } from "@/lib/dates";
@@ -26,7 +26,7 @@ const clean = (f: Partial<SavedFood> & { label?: unknown }) => ({
 const sum = (es: FoodEntry[], k: keyof FoodEntry) => es.reduce((a, e) => a + (Number(e[k]) || 0), 0);
 
 async function view(uid: string, date: string) {
-  const [program, saved, entries, profile] = await Promise.all([getProgram(uid), getSavedFoods(uid), getFoodLog(uid, date), getProfile(uid)]);
+  const [program, saved, entries, profile, managed] = await Promise.all([getProgram(uid), getSavedFoods(uid), getFoodLog(uid, date), getProfile(uid), quickFoodsManaged(uid)]);
   const monday = mondayOf(date);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const week = await Promise.all(days.map(async (d) => {
@@ -47,7 +47,7 @@ async function view(uid: string, date: string) {
     targets: { proteinG, calories, carbsG, fatG, fiberG: 30 /* a common goal for blood-sugar control */ },
     totals: { protein: sum(entries, "grams"), calories: sum(entries, "calories"), carbs: sum(entries, "carbsG"), fiber: sum(entries, "fiberG"), fat: sum(entries, "fatG") },
     entries,
-    foods: [...saved, ...DEFAULT_FOODS.filter((d) => !saved.some((f) => f.label.toLowerCase() === d.label.toLowerCase()))],
+    foods: managed ? saved : [...saved, ...DEFAULT_FOODS.filter((d) => !saved.some((f) => f.label.toLowerCase() === d.label.toLowerCase()))],
     custom: saved.map((f) => f.label),
     dinner: recipe ? { label: `Dinner: ${recipe.title}`, grams: recipe.nutrition.proteinG, calories: recipe.nutrition.calories, carbsG: recipe.nutrition.carbsG, fiberG: recipe.nutrition.fiberG, fatG: recipe.nutrition.fatG } : null,
     week,
@@ -70,7 +70,7 @@ export const POST = handle(async (req) => {
   const me = await requireUser();
   if (me instanceof Response) return me;
   if (me.role !== "parent") return bad("Not available", 403);
-  const b = await body<{ date: string; meal: Meal; add: SavedFood; addMany: SavedFood[]; save: boolean; remove: string; removeFood: string }>(req);
+  const b = await body<{ date: string; meal: Meal; add: SavedFood; addMany: SavedFood[]; save: boolean; remove: string; removeFood: string; setFoods: SavedFood[] }>(req);
   if (!isDate(b.date)) return bad("Missing date");
   const meal = MEALS.includes(b.meal as Meal) ? (b.meal as Meal) : "snack";
   let entries = await getFoodLog(me.id, b.date);
@@ -80,10 +80,17 @@ export const POST = handle(async (req) => {
     await saveFoodLog(me.id, b.date, entries);
     if (b.save && items.length === 1) {
       const saved = (await getSavedFoods(me.id)).filter((f) => f.label.toLowerCase() !== items[0].label.toLowerCase());
-      await saveSavedFoods(me.id, [items[0], ...saved].slice(0, 24));
+      await saveSavedFoods(me.id, [items[0], ...saved].slice(0, 40));
     }
   }
   if (typeof b.remove === "string") await saveFoodLog(me.id, b.date, (entries = entries.filter((e) => e.id !== b.remove)));
+  // setFoods: the whole quick-add list, in order (from the quick-add manager)
+  if (Array.isArray(b.setFoods)) {
+    const seen = new Set<string>();
+    const list = b.setFoods.slice(0, 40).map(clean).filter((f) => f.label && !seen.has(f.label.toLowerCase()) && seen.add(f.label.toLowerCase()));
+    await saveSavedFoods(me.id, list);
+    await setQuickFoodsManaged(me.id);
+  }
   if (typeof b.removeFood === "string") await saveSavedFoods(me.id, (await getSavedFoods(me.id)).filter((f) => f.label !== b.removeFood));
   return ok(await view(me.id, b.date));
 });

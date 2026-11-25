@@ -6,6 +6,7 @@ import type { FoodEstimate } from "@/lib/schemas";
 import { IconCamera, IconImage } from "./icons";
 import { toDataUrl } from "./ScreenshotImport";
 import { NumberInput } from "./ui";
+import { QuickFoodGrid, QuickFoodManager } from "./QuickFoods";
 
 export const MEALS: { id: Meal; label: string }[] = [
   { id: "breakfast", label: "Breakfast" }, { id: "lunch", label: "Lunch" }, { id: "dinner", label: "Dinner" }, { id: "snack", label: "Snack" },
@@ -31,6 +32,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
   const [draft, setDraft] = useState<Draft[] | null>(null);
   const [save, setSave] = useState(false);
   const [view, setView] = useState<FoodView | null>(null);
+  const [managing, setManaging] = useState(false);
   const camRef = useRef<HTMLInputElement>(null);
   const libRef = useRef<HTMLInputElement>(null);
 
@@ -84,6 +86,10 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
   const mult = est?.kind === "label" ? servings : 1;
   const tot = (k: keyof Draft) => Math.round((draft ?? []).filter((d) => d.keep).reduce((a, d) => a + (d[k] as number), 0) * mult);
 
+  if (managing && view) return (
+    <QuickFoodManager foods={view.foods} onDone={() => setManaging(false)}
+      onSave={async (list) => setView(await api<FoodView>("/api/food", { body: { date, setFoods: list } }))} />
+  );
   return (
     <div className="food-logger">
       <div className="chips">{MEALS.map((m) => <button key={m.id} className={`chip ${meal === m.id ? "on" : ""}`} onClick={() => setMeal(m.id)}>{m.label}</button>)}</div>
@@ -113,12 +119,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
         )}
         <p className="small muted" style={{ margin: "6px 0 0" }}>Take or pick up to 4 photos (plates, a Nutrition Facts label), add details if you like, or just type it.</p>
         {busy && photos.length > 0 && <p className="small muted"><span className="spinner" />Looking at your photo{photos.length > 1 ? "s" : ""}…</p>}
-        {view && (
-          <div className="chips scroll-x" style={{ marginTop: 12 }}>
-            {view.dinner && <button className="chip on" onClick={() => logItems([view.dinner!])}>{view.dinner.label.replace("Dinner: ", "Tonight: ")}</button>}
-            {view.foods.map((f) => <button key={f.label} className="chip" onClick={() => logItems([f])}>{f.label} · {f.grams}g P</button>)}
-          </div>
-        )}
+        {view && <QuickFoodGrid foods={view.foods} dinner={view.dinner} onPick={(f) => logItems([f])} onEdit={() => setManaging(true)} />}
       </>)}
 
       {draft && (

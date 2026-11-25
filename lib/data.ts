@@ -128,4 +128,7 @@ export const saveGuide = (id: string, g: ExerciseGuide) => db().set(`guide:${id}
 export const getFoodLog = getProteinLog;
 export const saveFoodLog = saveProteinLog;
 export const getSavedFoods = getProteinFoods;
+// Once you edit your quick-adds, your list is the whole list (the starter foods are no longer mixed in).
+export const quickFoodsManaged = async (uid: string) => !!(await db().get<boolean>(`quickfoods-managed:${uid}`));
+export const setQuickFoodsManaged = (uid: string) => db().set(`quickfoods-managed:${uid}`, true);
 export const saveSavedFoods = saveProteinFoods;
