@@ -7,6 +7,7 @@ import { api } from "@/lib/client";
 import { getExercise } from "@/lib/exercises";
 import type { Workout } from "@/lib/types";
 import { fmtClock, formatSet } from "@/lib/workout-client";
+import { NumberInput } from "./ui";
 import { IconTrophy, IconWatch } from "./icons";
 
 export const SHORTCUT_NAME = "Trainer Watch Sync";
@@ -14,6 +15,7 @@ export const SHORTCUT_NAME = "Trainer Watch Sync";
 export default function WorkoutDetail({ id, viewUser, justFinished }: { id: string; viewUser: string | null; justFinished: boolean }) {
   const [r, setR] = useState<{ workout: Workout; self: boolean } | null>(null);
   const [err, setErr] = useState("");
+  const [editTime, setEditTime] = useState<{ start: string; minutes: number | null } | null>(null);
   const [fb, setFb] = useState<{ message: string; replies: string[] } | null | "loading">(null);
   useEffect(() => {
     if (viewUser) return;
@@ -34,6 +36,15 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
     const x = await api<{ workout: Workout }>(`/api/workouts/${w.id}`, { method: "PATCH", body: { watch: v ?? null } });
     setR({ ...r!, workout: x.workout });
   }
+  async function saveTime() {
+    if (!editTime?.minutes) return;
+    const day = w.date;
+    const start = new Date(`${day}T${editTime.start}:00`);
+    try {
+      const x = await api<{ workout: Workout }>(`/api/workouts/${w.id}`, { method: "PATCH", body: { startedAt: start.toISOString(), endedAt: new Date(start.getTime() + editTime.minutes * 60000).toISOString() } });
+      setR({ ...r!, workout: x.workout }); setEditTime(null);
+    } catch (e) { setErr((e as Error).message); }
+  }
   async function del() {
     if (!confirm("Delete this workout?")) return;
     await api(`/api/workouts/${w.id}`, { method: "DELETE" });
@@ -47,10 +58,26 @@ export default function WorkoutDetail({ id, viewUser, justFinished }: { id: stri
       <h1 style={{ marginBottom: 2 }}>{w.name}</h1>
       <p className="small muted" style={{ marginTop: 0 }}>{new Date(w.startedAt).toLocaleString(undefined, { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
       <div className="stats">
-        <div className="stat"><b>{fmtClock(dur)}</b>time</div>
+        <div className="stat"><b>{fmtClock(dur)}</b>time{r.self && <button className="link small" style={{ display: "block", margin: "2px auto 0", minHeight: 0, padding: 0 }}
+          onClick={() => { const s = new Date(w.startedAt); setEditTime({ start: `${String(s.getHours()).padStart(2, "0")}:${String(s.getMinutes()).padStart(2, "0")}`, minutes: Math.max(1, Math.round(dur / 60)) }); }}>Edit</button>}</div>
         <div className="stat"><b>{w.stats.sets}</b>sets</div>
         {w.stats.volume > 0 && <div className="stat"><b>{w.stats.volume.toLocaleString()}</b>lb volume</div>}
       </div>
+
+      {editTime && (
+        <div className="card" style={{ marginTop: 14 }}>
+          <span className="eyebrow">Edit time</span>
+          <div className="row" style={{ gap: 10, flexWrap: "nowrap", marginTop: 8 }}>
+            <label className="small" style={{ flex: 1 }}>Started at<input type="time" value={editTime.start} onChange={(e) => e.target.value && setEditTime({ ...editTime, start: e.target.value })} /></label>
+            <label className="small" style={{ flex: 1 }}>Minutes<NumberInput value={editTime.minutes} decimals={0} onChange={(v) => setEditTime({ ...editTime, minutes: v })} /></label>
+          </div>
+          <div className="row" style={{ gap: 8, marginTop: 10 }}>
+            <button className="primary" onClick={saveTime} disabled={!editTime.minutes}>Save time</button>
+            <button className="link" onClick={() => setEditTime(null)}>Cancel</button>
+          </div>
+          <p className="small muted" style={{ margin: "8px 0 0" }}>Or add the Watch / Strava screenshot below — it sets the real length automatically.</p>
+        </div>
+      )}
 
       {fb && (
         <div className="card coach-card" style={{ marginTop: 14 }}>

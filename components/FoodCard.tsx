@@ -6,6 +6,7 @@ import { MEALS } from "./FoodLogger";
 import { IconClose, IconPlus } from "./icons";
 import { openLog } from "./LogSheet";
 
+export type FoodView = View;
 type View = {
   targets: { proteinG: number; calories: number; carbsG: number; fatG: number; fiberG: number };
   foods: { label: string; grams: number; calories?: number; carbsG?: number; fiberG?: number }[];
@@ -93,11 +94,28 @@ function Remaining({ v, self }: { v: View; self: boolean }) {
   );
 }
 
-export default function FoodCard({ date, self, viewUser }: { date: string; self: boolean; viewUser: string | null }) {
+/** Today's food totals, kept fresh when anything is logged. */
+export function useFoodView(date: string, viewUser: string | null, enabled = true) {
   const [v, setV] = useState<View | null>(null);
-  const load = useCallback(() => api<View>(`/api/food?date=${date}${viewUser ? `&user=${viewUser}` : ""}`).then(setV, () => {}), [date, viewUser]);
+  const load = useCallback(() => { if (enabled) api<View>(`/api/food?date=${date}${viewUser ? `&user=${viewUser}` : ""}`).then(setV, () => {}); }, [date, viewUser, enabled]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { const h = () => load(); window.addEventListener("food-logged", h); return () => window.removeEventListener("food-logged", h); }, [load]);
+  return [v, setV, load] as const;
+}
+
+/** "138 g protein left" style one-liner for Home's list. */
+export function foodStatus(v: View | null): { text: string; state: "done" | "part" | "todo" } {
+  if (!v) return { text: "", state: "todo" };
+  const left = v.targets.proteinG - v.totals.protein;
+  if (v.targets.calories && v.totals.calories > v.targets.calories) return { text: `${(v.totals.calories - v.targets.calories).toLocaleString()} cal over`, state: "part" };
+  if (left <= 0) return { text: "Protein hit", state: "done" };
+  return { text: `${left} g protein left`, state: v.entries.length ? "part" : "todo" };
+}
+
+/** Home shows the summary (progress + what's left); the Meals → Food tab shows everything. */
+export default function FoodCard({ date, self, viewUser, mode = "full", data }: { date: string; self: boolean; viewUser: string | null; mode?: "summary" | "full"; data?: ReturnType<typeof useFoodView> }) {
+  const own = useFoodView(date, viewUser, !data);
+  const [v, setV, load] = data ?? own;
   if (!v) return null;
 
   async function remove(id: string) {
@@ -109,7 +127,7 @@ export default function FoodCard({ date, self, viewUser }: { date: string; self:
   const maxDay = Math.max(v.targets.proteinG * 1.2, ...v.week.map((w) => w.protein ?? 0)) || 1;
 
   return (
-    <section className="card" id="food">
+    <section className={mode === "summary" ? "card food-summary" : "card"} id="food">
       <div className="row between" style={{ flexWrap: "nowrap" }}>
         <h2 style={{ margin: 0 }}>Food today</h2>
         {self && <button className="pill-btn row" style={{ gap: 4 }} onClick={() => openLog("food")}><IconPlus size={16} />Log food</button>}
@@ -122,6 +140,11 @@ export default function FoodCard({ date, self, viewUser }: { date: string; self:
       </div>
 
       <Remaining v={v} self={self} />
+      {mode === "summary" ? (
+        <a href="/meals?tab=food" className="small" style={{ display: "block", textAlign: "right", marginTop: 10 }}>
+          {v.entries.length ? `${v.entries.length} item${v.entries.length > 1 ? "s" : ""} logged · ` : ""}Meals &amp; this week ›
+        </a>
+      ) : (<>
 
       <div className="meals">
         {MEALS.map((m) => {
@@ -159,6 +182,7 @@ export default function FoodCard({ date, self, viewUser }: { date: string; self:
         ))}
       </div>
       <p className="small muted" style={{ margin: 0 }}>Protein this week · dashed line = target. Estimates from photos and descriptions are approximate.</p>
+      </>)}
     </section>
   );
 }

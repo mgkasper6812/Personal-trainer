@@ -8,10 +8,10 @@ import { ADULT_SYMPTOMS, ATHLETE_RED_FLAGS, type Readiness } from "@/lib/rules";
 import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { startWorkout } from "@/lib/workout-client";
-import { IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
-import FoodCard from "./FoodCard";
-import ReviewCard from "./ReviewCard";
-import CoachCard from "./CoachCard";
+import { IconChat, IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
+import FoodCard, { foodStatus, useFoodView } from "./FoodCard";
+import { ReviewChip, ReviewSheet, useReview } from "./ReviewCard";
+import type { ChatLine } from "@/lib/chat";
 import { ExerciseSheet } from "./ExerciseInfo";
 import { rxParts } from "@/lib/rx";
 import TonightCard from "./TonightCard";
@@ -37,22 +37,20 @@ type TodayRes = {
 const REGIONS: Region[] = ["shoulder", "elbow", "wrist", "back", "hip", "knee", "ankle", "neck"];
 const D = ["S", "M", "T", "W", "T", "F", "S"];
 const STATUS = { green: "Ready", yellow: "Adjusted", red: "Recovery" } as const;
+const EVENING: Record<string, string> = { plan: "As planned", bit: "Snacked a bit", off: "Off plan" };
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening"; };
 
-function Ring({ r, value, max, color }: { r: number; value: number; max: number; color: string }) {
-  const c = 2 * Math.PI * r;
-  const f = max > 0 ? Math.min(1, value / max) : 0;
-  return (<>
-    <circle cx="44" cy="44" r={r} fill="none" stroke="var(--track)" strokeWidth="8" />
-    <circle cx="44" cy="44" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c * f} ${c}`} transform="rotate(-90 44 44)" />
-  </>);
-}
+type RowId = "checkin" | "workout" | "food" | "tonight" | "habits";
 
 export default function Today({ viewUser }: { viewUser: string | null }) {
   const [date, setDate] = useState(localDate());
   const [d, setD] = useState<TodayRes | null>(null);
   const [err, setErr] = useState("");
   const [sheet, setSheet] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [open, setOpen] = useState<RowId | null>(null);
+  const [ciSkip, setCiSkip] = useState(false);
+  const [coach, setCoach] = useState<ChatLine | null>(null);
 
   const load = useCallback(async () => {
     setErr("");
@@ -63,13 +61,20 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (q.get("checkin") === "1" && !viewUser) { setSheet(true); window.history.replaceState(null, "", "/today"); }
-    if (window.location.hash === "#habits") setTimeout(() => document.getElementById("habits")?.scrollIntoView({ behavior: "smooth" }), 400);
+    if (window.location.hash === "#habits") { setOpen("habits"); setTimeout(() => document.getElementById("row-habits")?.scrollIntoView({ behavior: "smooth" }), 400); }
+    try { setCiSkip(sessionStorage.getItem(`ft-ci-skip-${localDate()}`) === "1"); } catch {}
   }, [viewUser]);
 
   const isToday = date === localDate();
   const self = d?.user.self ?? !viewUser;
   const r = d?.readiness;
   const adult = d?.profileKind === "adult";
+  const review = useReview(date, !!d?.hasProgram && self && isToday);
+  const food = useFoodView(date, viewUser, !!d && adult);
+  useEffect(() => {
+    if (!d || !self || !isToday) { setCoach(null); return; }
+    api<{ latest: ChatLine | null }>("/api/chat?latest=1").then((x) => setCoach(x.latest && x.latest.kind !== "review" && new Date(x.latest.at).toDateString() === new Date().toDateString() ? x.latest : null), () => {});
+  }, [d, self, isToday]);
 
   async function logEvening(v: EveningLog) {
     setD((x) => (x ? { ...x, evening: v } : x));
@@ -77,94 +82,163 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   }
 
   const dateLabel = new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-  return (
-    <main>
-      {viewUser && <BackButton fallback="/family" />}
-      <header className="home-head">
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="eyebrow">{dateLabel}{!isToday && <> · <button className="link" onClick={() => setDate(localDate())}>Back to today</button></>}</div>
-          <h1 style={{ margin: "2px 0 0" }}>{viewUser && d ? `${d.user.name}'s day` : `${greeting()}${d ? `, ${d.me.name}` : ""}`}</h1>
-        </div>
-        {d && viewUser && <Link href="/today" className="switch-chip"><span className="avatar" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>{d.me.name[0]}</span>Me</Link>}
-        <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
+  const header = (
+    <header className="home-head">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="eyebrow">{dateLabel}{!isToday && <> · <button className="link" onClick={() => setDate(localDate())}>Back to today</button></>}</div>
+        <h1 style={{ margin: "2px 0 0" }}>{viewUser && d ? `${d.user.name}'s day` : `${greeting()}${d ? `, ${d.me.name}` : ""}`}</h1>
+      </div>
+      {d && viewUser && <Link href="/today" className="switch-chip"><span className="avatar" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>{d.me.name[0]}</span>Me</Link>}
+      <div className="row" style={{ gap: 8, flexWrap: "nowrap" }}>
         {d && !viewUser && d.family.slice(0, 1).map((f) => (
           <Link key={f.id} href={`/today?user=${f.id}`} className="switch-chip" aria-label={`Switch to ${f.name}${f.alerts ? `, ${f.alerts} alert` : ""}`}>
             <span className="avatar">{f.name[0]}</span>{f.name}{f.alerts > 0 && <span className="alert-dot" />}
           </Link>
         ))}
         {d && !viewUser && <Link href="/me" className="me-btn" aria-label="Me: profile and settings">{d.me.name.slice(0, 1).toUpperCase()}</Link>}
-        </div>
-      </header>
-
+      </div>
+    </header>
+  );
+  if (!d || !d.hasProgram) return (
+    <main>
+      {viewUser && <BackButton fallback="/family" />}
+      {header}
       {err && <p className="error">{err}</p>}
       {!d && !err && <p className="muted"><span className="spinner" />Loading…</p>}
-      {d && !d.hasProgram && (
-        <div className="card"><h2>{self ? "Let's set you up" : `${d.user.name} hasn't finished setup`}</h2>{self && <Link href="/onboarding">Start setup →</Link>}</div>
+      {d && <div className="card"><h2>{self ? "Let's set you up" : `${d.user.name} hasn't finished setup`}</h2>{self && <Link href="/onboarding">Start setup →</Link>}</div>}
+    </main>
+  );
+
+  // ---- what's done, and what's next ----
+  const habitsDone = (d.habitWeek[date] ?? []).filter((h) => d.habitList.some((x) => x.name === h)).length;
+  const habitsAll = d.habitList.length > 0 && habitsDone >= d.habitList.length;
+  const workoutDone = d.workoutsToday.length > 0;
+  const preStart = !!d.startDate && date < d.startDate;
+  const hasWorkout = !!d.routine && !preStart;
+  const fs = foodStatus(food[0]);
+  const hour = new Date().getHours();
+  let next: RowId | "done" | null = null;
+  if (isToday) {
+    if (self && !d.checkIn && !ciSkip) next = "checkin";
+    else if (hasWorkout && !workoutDone) next = "workout";
+    else if (adult && d.tonight && hour >= 16 && !d.evening) next = "tonight";
+    else if (adult && food[0] && fs.state !== "done") next = "food";
+    else if (d.habitList.length && !habitsAll) next = "habits";
+    else if (adult && d.tonight && !d.evening) next = "tonight";
+    else next = "done";
+  } else if (hasWorkout && !workoutDone) next = "workout";
+
+  const planCard = <PlanCard d={d} date={date} self={self} />;
+  const habitsCard = <Habits d={d} date={date} self={self} onChange={(hw) => setD((x) => (x ? { ...x, habitWeek: hw } : x))} reload={load} />;
+  const tonightCard = d.tonight ? <TonightCard collapsible={next !== "tonight"} dinner={d.dinner} tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
+    plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} /> : null;
+  const foodCard = <FoodCard date={date} self={self} viewUser={viewUser} mode="summary" data={food} />;
+  const body: Record<RowId, React.ReactNode> = {
+    checkin: d.checkIn ? <CheckInSummary c={d.checkIn} r={r ?? null} athlete={!adult} onEdit={self ? () => setSheet(true) : undefined} /> : <p className="muted small" style={{ margin: 0 }}>No check-in yet.</p>,
+    workout: planCard, food: foodCard, tonight: tonightCard, habits: habitsCard,
+  };
+
+  type Row = { id: RowId; title: string; value: string; state: "done" | "part" | "todo" | "rest" };
+  const rows: Row[] = [
+    { id: "checkin", title: "Check in", value: d.checkIn ? STATUS[r?.status ?? "green"] : self ? "30 sec" : "Not yet", state: d.checkIn ? "done" : "todo" },
+    { id: "workout", title: "Workout", state: workoutDone ? "done" : hasWorkout ? "todo" : "rest",
+      value: workoutDone ? d.workoutsToday.map((w) => w.name).join(", ") : hasWorkout ? `${d.routine!.name} · ~${d.routine!.estMinutes} min` : preStart ? "Program hasn't started" : d.slotNote ?? "Rest day" },
+    ...(adult ? [{ id: "food" as const, title: "Food", value: food[0] ? fs.text : "…", state: fs.state }] : []),
+    ...(d.tonight ? [{ id: "tonight" as const, title: "Tonight", state: (d.evening ? "done" : "todo") as Row["state"],
+      value: d.evening ? EVENING[d.evening] ?? "Logged" : d.dinner ? d.dinner.title : "No dinner planned" }] : []),
+    ...(d.habitList.length || self ? [{ id: "habits" as const, title: "Habits", value: d.habitList.length ? `${habitsDone}/${d.habitList.length}` : "Add one", state: (habitsAll ? "done" : habitsDone ? "part" : "todo") as Row["state"] }] : []),
+  ];
+
+  const tap = (id: RowId) => {
+    if (id === "checkin" && self && !d.checkIn) return setSheet(true);
+    if (id === next) return window.scrollTo({ top: 0, behavior: "smooth" });
+    setOpen(open === id ? null : id);
+  };
+  const coachText = coach?.text ?? (review ? review.advice?.[0] ?? review.todayFocus?.[0] : null);
+
+  return (
+    <main>
+      {viewUser && <BackButton fallback="/family" />}
+      {header}
+      {err && <p className="error">{err}</p>}
+
+      <div className="status-strip">
+        {self && isToday && <ReviewChip r={review} onOpen={() => setReportOpen(true)} />}
+        {adult && food[0] && (
+          <button className="status-chip" onClick={() => { setOpen("food"); setTimeout(() => document.getElementById("row-food")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }}>
+            <b>{food[0].totals.protein}</b><span>/{food[0].targets.proteinG} g protein</span>
+          </button>
+        )}
+        <Link href={viewUser ? `/progress?user=${viewUser}` : "/progress"} className="status-chip">
+          <b>{d.weekStats.done}/{d.weekStats.planned}</b> workouts{d.weekStats.activeMin ? <> · <b>{d.weekStats.activeMin}</b> min</> : null}
+        </Link>
+      </div>
+
+      <div className="day-dots" style={{ marginTop: 0, marginBottom: 14 }}>
+        {d.weekStrip.map((x) => (
+          <button key={x.date} onClick={() => { setDate(x.date); setOpen(null); }} className={`${x.date === date ? "sel" : ""} ${x.done ? "done" : x.routine ? "train" : ""}`}
+            aria-label={`${x.date}${x.routine ? `: ${x.routine}` : ""}${x.done ? ", done" : ""}`}>
+            <span>{D[x.dow]}</span><i />
+          </button>
+        ))}
+      </div>
+
+      {r?.urgent && <div className="card urgent"><b>Stop.</b> {r.urgent}</div>}
+
+      {next && <div className="section-label">{next === "done" ? "Today" : "Up next"}</div>}
+      {next === "checkin" && (
+        <section className="hero">
+          <h2 className="hero-title">Check in</h2>
+          <p className="small muted" style={{ margin: "0 0 14px" }}>30 seconds — sleep, energy, soreness. It sets today&apos;s {hasWorkout ? `${d.routine!.name} ` : "plan "}to how you actually feel.</p>
+          <button className="primary big wide" onClick={() => setSheet(true)}>Check in</button>
+          <button className="link small" style={{ display: "block", margin: "10px auto 0" }} onClick={() => { setCiSkip(true); try { sessionStorage.setItem(`ft-ci-skip-${date}`, "1"); } catch {} }}>Skip for now</button>
+        </section>
+      )}
+      {next === "workout" && planCard}
+      {next === "tonight" && tonightCard}
+      {next === "food" && foodCard}
+      {next === "habits" && habitsCard}
+      {next === "done" && (
+        <section className="hero">
+          <h2 className="hero-title">All done today ✓</h2>
+          <p className="small muted" style={{ margin: 0 }}>{workoutDone ? `${d.workoutsToday.map((w) => w.name).join(" + ")} logged. ` : ""}{adult && food[0] ? `${food[0].totals.protein} g protein. ` : ""}Rest up — tomorrow builds on today.</p>
+        </section>
       )}
 
-      {d?.hasProgram && (<>
-        {self && isToday && <ReviewCard date={date} />}
-        {self && isToday && <CoachCard date={date} />}
-        <section className="card week-card">
-          <div className="row" style={{ gap: 14, flexWrap: "nowrap" }}>
-            <svg width="88" height="88" viewBox="0 0 88 88" role="img" aria-label={`${d.weekStats.done} of ${d.weekStats.planned} workouts, ${d.weekStats.activeMin} of 150 active minutes`}>
-              <Ring r={38} value={d.weekStats.done} max={d.weekStats.planned || 1} color="var(--accent)" />
-              <Ring r={26} value={d.weekStats.activeMin} max={150} color="var(--accent2)" />
-            </svg>
-            <div style={{ flexGrow: 1, display: "grid", gap: 6 }}>
-              <span className="eyebrow">This week</span>
-              <div className="legend"><i style={{ background: "var(--accent)" }} /><b className="display">{d.weekStats.done}/{d.weekStats.planned}</b><span>workouts</span></div>
-              <div className="legend"><i style={{ background: "var(--accent2)" }} /><b className="display">{d.weekStats.activeMin}/150</b><span>active min</span></div>
-            </div>
-            {adult && (
-              <div className="side-stat"><b className="display">{d.weekStats.eveningsOnPlan}/7</b><span>evenings on plan</span></div>
-            )}
+      {coachText && self && isToday && (
+        <Link href="/coach" className="coach-line">
+          <IconChat size={18} />
+          <span><b>Coach</b> {coachText}</span>
+          <IconChevron size={16} />
+        </Link>
+      )}
+
+      <div className="section-label">{isToday ? "Today" : dateLabel}</div>
+      <section className="today-list">
+        {rows.map((row) => (
+          <div key={row.id} id={`row-${row.id}`} className={`trow-wrap ${open === row.id ? "open" : ""}`}>
+            <button className="trow" onClick={() => tap(row.id)} aria-expanded={open === row.id}>
+              <span className={`trow-icon ${row.state}`} aria-hidden>{row.state === "done" ? <IconCheck size={14} /> : null}</span>
+              <span className="trow-title">{row.title}</span>
+              <span className="trow-value">{row.id === next ? <span className="accent-text">Up next ↑</span> : row.value}</span>
+              {row.id !== next && <span className={`trow-chev ${open === row.id ? "rot" : ""}`}><IconChevron size={16} /></span>}
+            </button>
+            {open === row.id && row.id !== next && <div className="trow-body">{body[row.id]}</div>}
           </div>
-          {self && d.me.role === "parent" && <Link href="/progress" className="small" style={{ display: "block", textAlign: "right", marginTop: 8 }}>See progress ›</Link>}
-          <div className="day-dots">
-            {d.weekStrip.map((x) => (
-              <button key={x.date} onClick={() => setDate(x.date)} className={`${x.date === date ? "sel" : ""} ${x.done ? "done" : x.routine ? "train" : ""}`}
-                aria-label={`${x.date}${x.routine ? `: ${x.routine}` : ""}${x.done ? ", done" : ""}`}>
-                <span>{D[x.dow]}</span><i />
-              </button>
-            ))}
+        ))}
+      </section>
+
+      {adult && <p className="small muted" style={{ textAlign: "center" }}>General guidance, not medical advice — your doctor leads on A1C and medications.</p>}
+
+      {reportOpen && review && <ReviewSheet r={review} onClose={() => setReportOpen(false)} />}
+      {sheet && (
+        <div className="sheet-backdrop" onClick={() => setSheet(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Check in">
+            <CheckInForm athlete={!adult} date={date} initial={d.checkIn}
+              onSaved={() => { setSheet(false); load(); }} onCancel={() => setSheet(false)} />
           </div>
-        </section>
-
-        {r?.urgent && <div className="card urgent"><b>Stop.</b> {r.urgent}</div>}
-
-        {self ? (
-          <button className="checkin-row" onClick={() => setSheet(true)}>
-            <span className={`ci-icon ${d.checkIn ? "done" : ""}`}><IconCheck size={18} /></span>
-            <span style={{ flexGrow: 1 }}>
-              {d.checkIn ? <>Checked in <span className={`pill ${r?.status ?? "green"}`} style={{ marginLeft: 6 }}>{STATUS[r?.status ?? "green"]}</span></> : <>Check in <span className="muted" style={{ fontWeight: 500 }}>· 30 sec</span></>}
-            </span>
-            <span className="muted small">{d.checkIn ? "Edit" : ""}</span><IconChevron size={18} />
-          </button>
-        ) : d.checkIn ? <CheckInSummary c={d.checkIn} r={r ?? null} athlete={d.profileKind === "athlete"} /> : <p className="muted small">No check-in yet.</p>}
-
-        <PlanCard d={d} date={date} self={self} />
-
-        {adult && <FoodCard date={date} self={self} viewUser={viewUser} />}
-
-        {d.tonight && (
-          <TonightCard collapsible dinner={d.dinner} tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
-            plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} />
-        )}
-
-        <Habits d={d} date={date} self={self} onChange={(hw) => setD((x) => (x ? { ...x, habitWeek: hw } : x))} reload={load} />
-
-        {adult && <p className="small muted" style={{ textAlign: "center" }}>General guidance, not medical advice — your doctor leads on A1C and medications.</p>}
-
-        {sheet && (
-          <div className="sheet-backdrop" onClick={() => setSheet(false)}>
-            <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Check in">
-              <CheckInForm athlete={d.profileKind === "athlete"} date={date} initial={d.checkIn}
-                onSaved={() => { setSheet(false); load(); }} onCancel={() => setSheet(false)} />
-            </div>
-          </div>
-        )}
-      </>)}
+        </div>
+      )}
     </main>
   );
 }

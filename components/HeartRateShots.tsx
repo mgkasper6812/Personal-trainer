@@ -13,7 +13,7 @@ export function mergeShot(prev: Watch | undefined, w: ScreenshotWorkout): Watch 
   const pos = (x: number) => (x > 0 ? Math.round(x * 10) / 10 : undefined);
   const next: Partial<Watch> = {
     avgHR: pos(w.avgHR), maxHR: pos(w.maxHR), calories: pos(w.activeCalories) ?? pos(w.totalCalories), durationMin: pos(w.durationMin),
-    distanceMi: pos(w.distanceMi), elevationFt: pos(w.elevationFt), pace: w.avgPace || undefined, activity: w.activity || undefined, zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source,
+    distanceMi: pos(w.distanceMi), elevationFt: pos(w.elevationFt), pace: w.avgPace || undefined, activity: w.activity || undefined, startTime: /^\d{2}:\d{2}$/.test(w.startTime ?? "") ? w.startTime : undefined, zones: w.zoneMinutes?.length ? w.zoneMinutes.map((z) => `Z${z.zone} ${z.minutes}m`).join(", ") : undefined, source: w.source,
   };
   const clean = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined));
   return { ...(prev ?? {}), ...clean, syncedAt: new Date().toISOString() } as Watch;

@@ -48,8 +48,11 @@ export async function saveWorkout(uid: string, b: Partial<Workout> & { date: str
       sets: (Array.isArray(e.sets) ? e.sets : []).slice(0, 30).map(cleanSet),
     }));
   const id = typeof b.id === "string" && /^[\w-]{6,64}$/.test(b.id) ? b.id : crypto.randomUUID();
-  const startedAt = typeof b.startedAt === "string" ? b.startedAt : new Date().toISOString();
-  const endedAt = typeof b.endedAt === "string" ? b.endedAt : new Date().toISOString();
+  const endedAt = typeof b.endedAt === "string" && !isNaN(Date.parse(b.endedAt)) ? b.endedAt : new Date().toISOString();
+  let startedAt = typeof b.startedAt === "string" && !isNaN(Date.parse(b.startedAt)) ? b.startedAt : endedAt;
+  // Logged after the fact (45 seconds of tapping) but the Watch/screenshot says 40 minutes: trust the Watch.
+  const watchMin = cleanWatch(b.watch)?.durationMin;
+  if (watchMin && Date.parse(endedAt) - Date.parse(startedAt) < watchMin * 60000 * 0.5) startedAt = new Date(Date.parse(endedAt) - watchMin * 60000).toISOString();
   const prs: PR[] = [];
   for (const ex of exercises) {
     const point = summarize(ex, b.date, id);

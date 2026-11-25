@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, localDate } from "@/lib/client";
 import { fmtItem, type GroceryAisle } from "@/lib/grocery";
 import type { MealPlan, RecipeSummary } from "@/lib/types";
+import FoodCard from "./FoodCard";
 import { IconCart, IconChevron, IconClose, IconHeart } from "./icons";
 
 type PlanView = {
@@ -11,7 +12,7 @@ type PlanView = {
   recipes: Record<string, { id: string; title: string; timeMin: number; nutrition: RecipeSummary["nutrition"]; tags: string[] }>;
 };
 type Library = { recipes: RecipeSummary[]; latestBatch: string | null; canFetch: boolean };
-const SEGS = [["week", "This week"], ["recipes", "Recipes"], ["groceries", "Groceries"]] as const;
+const SEGS = [["food", "Food"], ["week", "Dinners"], ["recipes", "Recipes"], ["groceries", "Groceries"]] as const;
 
 const monday = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return localDate(x); };
 const shiftWeek = (w: string, n: number) => { const x = new Date(`${w}T12:00:00`); x.setDate(x.getDate() + 7 * n); return localDate(x); };
@@ -22,6 +23,7 @@ export default function Meals() {
   // Planning defaults to next week from Friday on (that's when new recipes arrive).
   const [week, setWeek] = useState(() => { const now = new Date(); return now.getDay() >= 5 || now.getDay() === 0 ? shiftWeek(monday(now), now.getDay() === 0 ? 0 : 1) : monday(now); });
   const [seg, setSeg] = useState<(typeof SEGS)[number][0]>("week");
+  useEffect(() => { if (new URLSearchParams(window.location.search).get("tab") === "food") setSeg("food"); }, []);
   const [pv, setPv] = useState<PlanView | null>(null);
   const [lib, setLib] = useState<Library | null>(null);
   const [picking, setPicking] = useState<string | null>(null);
@@ -61,19 +63,21 @@ export default function Meals() {
   return (
     <main>
       <div className="row between" style={{ marginBottom: 6 }}>
-        <h1 style={{ margin: 0 }}>Dinners</h1>
-        <div className="row" style={{ gap: 4 }}>
+        <h1 style={{ margin: 0 }}>{seg === "food" ? "Food" : "Dinners"}</h1>
+        {seg !== "food" && <div className="row" style={{ gap: 4 }}>
           <button className="pill-btn" aria-label="Previous week" onClick={() => setWeek(shiftWeek(week, -1))}>‹</button>
           <span className="small" style={{ minWidth: 92, textAlign: "center" }}>Week of {dayNum(week)}</span>
           <button className="pill-btn" aria-label="Next week" onClick={() => setWeek(shiftWeek(week, 1))}>›</button>
-        </div>
+        </div>}
       </div>
-      <p className="small muted" style={{ marginTop: 0 }}>Family of 4 · built around your health bio</p>
-      <div className="seg3" role="tablist">
+      <p className="small muted" style={{ marginTop: 0 }}>{seg === "food" ? "Everything you've logged today, by meal" : "Family of 4 · built around your health bio"}</p>
+      <div className="seg3 seg4" role="tablist">
         {SEGS.map(([k, label]) => <button key={k} role="tab" aria-selected={seg === k} className={seg === k ? "on" : ""} onClick={() => setSeg(k)}>{label}</button>)}
       </div>
       {err && <p className="error">{err}</p>}
       {busy && <p className="muted"><span className="spinner" />{busy}</p>}
+
+      {seg === "food" && <FoodCard date={localDate()} self viewUser={null} />}
 
       {seg === "week" && (!pv ? <p className="muted"><span className="spinner" />Loading…</p> : (<>
         <section className="card" style={{ padding: "4px 16px" }}>

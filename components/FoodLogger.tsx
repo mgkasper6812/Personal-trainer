@@ -67,6 +67,7 @@ export default function FoodLogger({ initialMeal, onLogged }: { initialMeal?: Me
       await api("/api/food", { body: { date, meal, addMany: items, save: saveIt } });
       const cal = items.reduce((a, i) => a + (i.calories ?? 0), 0), p = items.reduce((a, i) => a + i.grams, 0);
       window.dispatchEvent(new Event("food-logged"));
+      setPhotos([]); // photos are only for reading the nutrition — never kept once logged
       onLogged(`${MEALS.find((m) => m.id === meal)!.label}: +${cal} cal · ${p} g protein`);
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   }

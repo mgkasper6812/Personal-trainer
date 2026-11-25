@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import HeartRateShots from "./HeartRateShots";
+import { IconPlay } from "./icons";
 import { cardioExerciseFor, cardioNotes, cardioSet, isStrengthActivity, type Watch } from "@/lib/cardio";
 import BackButton from "./BackButton";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -102,11 +103,12 @@ export default function Logger() {
       }
     }
     update((x) => {
+      if (!x.startedAt && x.mode !== "past") x = { ...x, startedAt: new Date().toISOString(), mode: "live" };
       const exercises = x.exercises.map((e2, i) => i !== ei ? e2 : { ...e2, sets: e2.sets.map((s2, j) => j !== si ? s2 : { ...s2, ...patch }) });
       // Supersets: rest only after the last exercise in the group
       const group = ex.superset;
       const nextInGroup = group ? exercises.findIndex((e2, i) => i > ei && e2.superset === group) : -1;
-      const rest = done && ex.restSec > 0 && nextInGroup < 0;
+      const rest = done && ex.restSec > 0 && nextInGroup < 0 && x.mode !== "past";
       return { ...x, exercises, restEndsAt: rest ? Date.now() + ex.restSec * 1000 : x.restEndsAt, restTotal: rest ? ex.restSec : x.restTotal };
     });
   };
@@ -123,11 +125,26 @@ export default function Logger() {
     const a = [...x.exercises]; const j = ei + d; if (j < 0 || j >= a.length) return x; [a[ei], a[j]] = [a[j], a[ei]]; return { ...x, exercises: a };
   });
 
-  const elapsed = (now - Date.parse(w.startedAt)) / 1000;
+  const started = !!w.startedAt;
+  const past = w.mode === "past";
+  const elapsed = started && !past ? (now - Date.parse(w.startedAt)) / 1000 : 0;
+  const startNow = () => update((x) => ({ ...x, startedAt: new Date().toISOString(), mode: "live" }));
+  const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const estMin = w.exercises.reduce((a, e) => a + (getExercise(e.exerciseId)?.kind === "cardio" ? (e.sets[0]?.minutes ?? e.target?.minutes ?? 0) : 0), 0) || 45;
+  const logPast = () => update((x) => ({ ...x, mode: "past", startedAt: "", restEndsAt: null,
+    past: x.past ?? { start: hhmm(new Date(Date.now() - estMin * 60000)), minutes: estMin } }));
+  const setPast = (p: Partial<NonNullable<ActiveWorkout["past"]>>) => update((x) => ({ ...x, past: { start: x.past?.start ?? "12:00", minutes: x.past?.minutes ?? null, ...p } }));
   const doneSets = w.exercises.flatMap((e) => e.sets).filter((s) => s.done && s.type !== "warmup");
   const volume = doneSets.reduce((a, s) => a + (s.weight ?? 0) * (s.reps ?? 0), 0);
   const restLeft = w.restEndsAt ? (w.restEndsAt - now) / 1000 : 0;
 
+  /** Live: when you started → now. Already done: the time and length you entered (or the screenshot's). */
+  function times() {
+    if (!past) return { startedAt: w!.startedAt || new Date().toISOString(), endedAt: new Date().toISOString() };
+    const mins = w!.past?.minutes ?? w!.watch?.durationMin ?? estMin;
+    const start = new Date(`${w!.date}T${w!.past?.start ?? "12:00"}:00`);
+    return { startedAt: start.toISOString(), endedAt: new Date(start.getTime() + mins * 60000).toISOString() };
+  }
   async function finish() {
     if (!w) return;
     const open = w.exercises.flatMap((e) => e.sets).filter((s) => !s.done).length;
@@ -136,7 +153,7 @@ export default function Logger() {
     setSaving(true); setErr("");
     try {
       const body: Partial<Workout> = {
-        id: w.id, date: w.date, name: w.name, routineKey: w.routineKey, startedAt: w.startedAt, endedAt: new Date().toISOString(),
+        id: w.id, date: w.date, name: w.name, routineKey: w.routineKey, ...times(),
         notes: w.notes, watch: w.watch,
         exercises: w.exercises.map(({ target: _t, hint: _h, ...e }) => ({ ...e, sets: e.sets.filter((s) => s.done) })).filter((e) => e.sets.length),
       };
@@ -161,12 +178,35 @@ export default function Logger() {
           <BackButton fallback="/today" label="Minimize" />
           <input className="title-input" value={w.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} aria-label="Workout name" />
           <div className="row small muted" style={{ gap: 14 }}>
-            <span className="display">{fmtClock(elapsed)}</span><span>{doneSets.length} set{doneSets.length === 1 ? "" : "s"}</span>{volume > 0 && <span>{volume.toLocaleString()} lb</span>}
+            <span className="display">{past ? `Already done${w.past?.minutes ? ` · ${w.past.minutes} min` : ""}` : started ? fmtClock(elapsed) : "Not started"}</span><span>{doneSets.length} set{doneSets.length === 1 ? "" : "s"}</span>{volume > 0 && <span>{volume.toLocaleString()} lb</span>}
           </div>
         </div>
-        <button className="primary" onClick={finish} disabled={saving}>{saving ? "Saving…" : "Finish"}</button>
+        <button className="primary" onClick={finish} disabled={saving}>{saving ? "Saving…" : past ? "Save" : "Finish"}</button>
       </div>
       {err && <p className="error">{err}</p>}
+
+      {!started && !past && (
+        <section className="card start-panel">
+          <button className="primary big wide row" style={{ justifyContent: "center", gap: 8 }} onClick={startNow}><IconPlay size={18} />Start now</button>
+          <button className="wide" onClick={logPast}>Already done? Log it from your Watch or another app</button>
+          <p className="small muted" style={{ margin: "8px 0 0", textAlign: "center" }}>The clock starts when you tap Start — or when you tick your first set.</p>
+        </section>
+      )}
+      {past && (
+        <section className="card start-panel">
+          <div className="row between"><span className="eyebrow">Already done</span><button className="link small" onClick={() => update((x) => ({ ...x, mode: undefined }))}>Do it live instead</button></div>
+          <div className="row" style={{ gap: 10, flexWrap: "nowrap", marginTop: 10 }}>
+            <label className="small" style={{ flex: 1 }}>Started at<input type="time" value={w.past?.start ?? ""} onChange={(e) => e.target.value && setPast({ start: e.target.value })} /></label>
+            <label className="small" style={{ flex: 1 }}>Minutes<NumberInput value={w.past?.minutes ?? null} decimals={0} onChange={(v) => setPast({ minutes: v })} /></label>
+          </div>
+          <p className="small muted" style={{ margin: "10px 0 6px" }}>Fastest: add the summary screenshot from Apple Fitness, the Watch or Strava — it fills in the time, length, heart rate and cardio numbers.</p>
+          <HeartRateShots value={w.watch} label="Add Watch / Strava screenshot" onChange={(v) => update((x) => ({
+            ...x, watch: v, exercises: applyCardioShot(x.exercises, v),
+            past: v?.durationMin || v?.startTime ? { start: v.startTime ?? x.past?.start ?? "12:00", minutes: v.durationMin ? Math.round(v.durationMin) : x.past?.minutes ?? null } : x.past,
+          }))} />
+          <p className="small muted" style={{ margin: "10px 0 0" }}>Then tick off what you did below and tap Save.</p>
+        </section>
+      )}
 
       {w.exercises.map((ex, ei) => <ExerciseCard key={`${ex.exerciseId}-${ei}`} ex={ex} ei={ei} stats={stats[ex.exerciseId]}
         menuOpen={menu === ei} setMenu={(o) => setMenu(o ? ei : null)}
@@ -181,12 +221,12 @@ export default function Logger() {
       {info && <ExerciseSheet id={info} onClose={() => setInfo(null)} />}
 
       <button className="wide" onClick={() => setPicker({ mode: "add" })}>+ Add exercise</button>
-      <section className="card" style={{ marginTop: 12 }}>
+      {!past && <section className="card" style={{ marginTop: 12 }}>
         <span className="eyebrow">Heart rate &amp; cardio</span>
         <div style={{ marginTop: 8 }}>
           <HeartRateShots value={w.watch} onChange={(v) => update((x) => ({ ...x, watch: v, exercises: applyCardioShot(x.exercises, v) }))} />
         </div>
-      </section>
+      </section>}
       <textarea rows={2} placeholder="Workout notes" value={w.notes} onChange={(e) => update((x) => ({ ...x, notes: e.target.value }))} style={{ marginTop: 12 }} />
       <button className="wide danger-text" onClick={discard} style={{ marginTop: 12 }}>Discard workout</button>
 

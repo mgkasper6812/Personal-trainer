@@ -14,7 +14,9 @@ export type ActiveWorkout = {
   date: string;
   name: string;
   routineKey: string | null;
-  startedAt: string;
+  startedAt: string; // "" until you tap Start (or choose "Already done")
+  mode?: "live" | "past";
+  past?: { start: string; minutes: number | null }; // "Already done": local HH:MM and length
   exercises: ActiveExercise[];
   restEndsAt: number | null;
   restTotal: number;
@@ -133,7 +135,7 @@ export async function startWorkout(routine: Routine | null, date: string, deload
   const w: ActiveWorkout = routine
     ? fromRoutine(routine, date, stats, deload)
     : { id: crypto.randomUUID(), date, name: "Workout", routineKey: null, startedAt: new Date().toISOString(), exercises: [], restEndsAt: null, restTotal: 0, notes: "" };
-  saveActive(w);
+  saveActive({ ...w, startedAt: "" }); // opens ready to go; the clock starts when you tap Start
   window.location.href = "/workout";
 }
 

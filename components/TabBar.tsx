@@ -26,8 +26,8 @@ export default function TabBar({ role }: { role: "parent" | "athlete" }) {
       {active && (
         <Link href="/workout" className="active-bar">
           <span className="dot" />
-          <span style={{ flexGrow: 1 }}>{active.name} in progress</span>
-          <span className="display">{fmtClock((now - Date.parse(active.startedAt)) / 1000)}</span>
+          <span style={{ flexGrow: 1 }}>{active.name}{active.startedAt ? " in progress" : ""}</span>
+          <span className="display">{active.startedAt ? fmtClock((now - Date.parse(active.startedAt)) / 1000) : "Not started"}</span>
           <span>Resume ›</span>
         </Link>
       )}

@@ -143,7 +143,7 @@ export type Workout = {
   rpe?: number; // session RPE
   notes?: string;
   watch?: { avgHR?: number; maxHR?: number; calories?: number; durationMin?: number; distanceMi?: number; zones?: string; source?: string;
-    activity?: string; pace?: string; elevationFt?: number; syncedAt: string };
+    activity?: string; pace?: string; elevationFt?: number; startTime?: string; syncedAt: string };
   stats: { volume: number; sets: number; prs: PR[] };
 };
 
