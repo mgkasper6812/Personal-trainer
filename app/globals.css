@@ -463,3 +463,6 @@ button.trow-icon:active { transform: scale(.9); }
 .qa-list-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 54px; padding: 6px 0; border: 0; background: none; color: var(--text); text-align: left; }
 .qa-icon { width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 10px; flex: none; font-size: 16px; }
 .qa-form .macro-edit { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.meal-item-main { flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-height: 40px; padding: 0; border: 0; background: none; color: var(--text); text-align: left; }
+.entry-edit { margin: 6px 0 10px; padding: 12px; border-radius: 14px; background: var(--card2); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.entry-edit .seg button { font-size: 13px; }

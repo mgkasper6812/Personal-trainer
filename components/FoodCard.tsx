@@ -5,6 +5,7 @@ import type { FoodEntry, Meal } from "@/lib/data";
 import { MEALS } from "./FoodLogger";
 import { IconClose, IconPlus } from "./icons";
 import { openLog } from "./LogSheet";
+import { NumberInput, Segmented } from "./ui";
 
 export type FoodView = View;
 type View = {
@@ -115,9 +116,15 @@ export function foodStatus(v: View | null): { text: string; state: "done" | "par
 /** Home shows the summary (progress + what's left); the Meals → Food tab shows everything. */
 export default function FoodCard({ date, self, viewUser, mode = "full", data }: { date: string; self: boolean; viewUser: string | null; mode?: "summary" | "full"; data?: ReturnType<typeof useFoodView> }) {
   const own = useFoodView(date, viewUser, !data);
+  const [editing, setEditing] = useState<string | null>(null);
   const [v, setV, load] = data ?? own;
   if (!v) return mode === "summary" ? <p className="small muted" style={{ margin: 0 }}><span className="spinner" />Loading…</p> : null;
 
+  async function save(id: string, u: Partial<FoodEntry>) {
+    setV((x) => x && { ...x, entries: x.entries.map((e) => (e.id === id ? { ...e, ...u } : e)) });
+    await api("/api/food", { body: { date, update: { id, ...u } } }).catch(() => {});
+    load(); window.dispatchEvent(new Event("food-logged"));
+  }
   async function remove(id: string) {
     setV((x) => x && { ...x, entries: x.entries.filter((e) => e.id !== id) });
     await api("/api/food", { body: { date, remove: id } }).catch(() => {});
@@ -157,10 +164,18 @@ export default function FoodCard({ date, self, viewUser, mode = "full", data }: 
                 {es.length ? <span className="small muted">{cal} cal · {p} g P</span>
                   : self ? <button className="link small" onClick={() => openLog("food", m.id)}>+ Add</button> : <span className="small muted">—</span>}
               </div>
-              {es.map((e) => (
+              {es.map((e) => editing === e.id ? (
+                <EntryEditor key={e.id} e={e} onCancel={() => setEditing(null)} onDelete={() => { setEditing(null); remove(e.id); }}
+                  onSave={async (u) => { setEditing(null); await save(e.id, u); }} />
+              ) : (
                 <div key={e.id} className="meal-item">
-                  <span>{e.label}</span>
-                  <span className="small muted">{e.calories != null ? `${e.calories} cal · ` : ""}{e.grams} g P{e.carbsG != null ? ` · ${e.carbsG} g C` : ""}</span>
+                  {self ? <button className="meal-item-main" onClick={() => setEditing(e.id)} aria-label={`Edit ${e.label}`}>
+                    <span>{e.label}</span>
+                    <span className="small muted">{e.calories != null ? `${e.calories} cal · ` : ""}{e.grams} g P{e.carbsG != null ? ` · ${e.carbsG} g C` : ""}</span>
+                  </button> : (<>
+                    <span>{e.label}</span>
+                    <span className="small muted">{e.calories != null ? `${e.calories} cal · ` : ""}{e.grams} g P{e.carbsG != null ? ` · ${e.carbsG} g C` : ""}</span>
+                  </>)}
                   {self && <button className="link" aria-label={`Remove ${e.label}`} onClick={() => remove(e.id)}><IconClose size={14} /></button>}
                 </div>
               ))}
@@ -184,5 +199,30 @@ export default function FoodCard({ date, self, viewUser, mode = "full", data }: 
       <p className="small muted" style={{ margin: 0 }}>Protein this week · dashed line = target. Estimates from photos and descriptions are approximate.</p>
       </>)}
     </section>
+  );
+}
+
+/** Edit a logged item in place: move it to another meal, rename it, fix the numbers, or delete it. */
+function EntryEditor({ e, onSave, onCancel, onDelete }: { e: FoodEntry; onSave: (u: Partial<FoodEntry>) => void; onCancel: () => void; onDelete: () => void }) {
+  const [f, setF] = useState<FoodEntry>({ ...e, meal: e.meal ?? "snack" });
+  const set = (p: Partial<FoodEntry>) => setF((x) => ({ ...x, ...p }));
+  return (
+    <div className="entry-edit">
+      <Segmented options={MEALS.map((m) => m.id)} value={f.meal ?? "snack"} onChange={(m) => set({ meal: m as Meal })}
+        labels={Object.fromEntries(MEALS.map((m) => [m.id, m.label])) as Record<Meal, string>} />
+      <input className="food-name" value={f.label} onChange={(ev) => set({ label: ev.target.value })} aria-label="Food name" style={{ marginTop: 10 }} />
+      <div className="macro-edit">
+        <label>cal<NumberInput decimals={0} value={f.calories ?? 0} onChange={(v) => set({ calories: v ?? 0 })} /></label>
+        <label>protein<NumberInput decimals={0} value={f.grams} onChange={(v) => set({ grams: v ?? 0 })} /></label>
+        <label>carbs<NumberInput decimals={0} value={f.carbsG ?? 0} onChange={(v) => set({ carbsG: v ?? 0 })} /></label>
+        <label>fiber<NumberInput decimals={0} value={f.fiberG ?? 0} onChange={(v) => set({ fiberG: v ?? 0 })} /></label>
+      </div>
+      <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: "nowrap" }}>
+        <button className="primary" style={{ flex: 1 }} disabled={!f.label.trim()}
+          onClick={() => onSave({ label: f.label.trim(), meal: f.meal, grams: f.grams, calories: f.calories, carbsG: f.carbsG, fiberG: f.fiberG })}>Save</button>
+        <button onClick={onCancel}>Cancel</button>
+        <button className="danger-text" onClick={onDelete}>Delete</button>
+      </div>
+    </div>
   );
 }

@@ -70,7 +70,7 @@ export const POST = handle(async (req) => {
   const me = await requireUser();
   if (me instanceof Response) return me;
   if (me.role !== "parent") return bad("Not available", 403);
-  const b = await body<{ date: string; meal: Meal; add: SavedFood; addMany: SavedFood[]; save: boolean; remove: string; removeFood: string; setFoods: SavedFood[] }>(req);
+  const b = await body<{ date: string; meal: Meal; add: SavedFood; addMany: SavedFood[]; save: boolean; remove: string; removeFood: string; setFoods: SavedFood[]; update: Partial<FoodEntry> & { id: string } }>(req);
   if (!isDate(b.date)) return bad("Missing date");
   const meal = MEALS.includes(b.meal as Meal) ? (b.meal as Meal) : "snack";
   let entries = await getFoodLog(me.id, b.date);
@@ -82,6 +82,16 @@ export const POST = handle(async (req) => {
       const saved = (await getSavedFoods(me.id)).filter((f) => f.label.toLowerCase() !== items[0].label.toLowerCase());
       await saveSavedFoods(me.id, [items[0], ...saved].slice(0, 40));
     }
+  }
+  // update: change a logged entry (meal, name, numbers)
+  if (b.update && typeof b.update.id === "string") {
+    const u = b.update;
+    entries = entries.map((e) => {
+      if (e.id !== u.id) return e;
+      const c = clean({ ...e, ...u });
+      return { ...e, ...c, label: c.label || e.label, meal: MEALS.includes(u.meal as Meal) ? (u.meal as Meal) : e.meal };
+    });
+    await saveFoodLog(me.id, b.date, entries);
   }
   if (typeof b.remove === "string") await saveFoodLog(me.id, b.date, (entries = entries.filter((e) => e.id !== b.remove)));
   // setFoods: the whole quick-add list, in order (from the quick-add manager)
