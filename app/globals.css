@@ -443,3 +443,9 @@ label.walk-tick { display: flex; flex-direction: row; align-items: center; justi
 .walk-tick > span { flex: 1; min-width: 0; color: var(--text); }
 .trow-body .tonight > .row:first-child h2 { visibility: hidden; height: 0; }
 .trow-body .tonight > .row:first-child { margin-top: -8px; }
+.trow { padding: 0 16px 0 8px; gap: 4px; }
+.trow > .trow-icon { margin: 0; }
+button.trow-icon { min-height: 0; padding: 0; cursor: pointer; box-sizing: content-box; outline-offset: 4px;
+  /* 44px touch target around the 24px circle */ box-shadow: 0 0 0 10px transparent; margin: 0 10px !important; }
+button.trow-icon:active { transform: scale(.9); }
+.trow-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; }

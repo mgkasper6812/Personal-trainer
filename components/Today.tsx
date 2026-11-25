@@ -9,6 +9,7 @@ import { ADULT_SYMPTOMS, ATHLETE_RED_FLAGS, type Readiness } from "@/lib/rules";
 import type { Routine } from "@/lib/schemas";
 import type { CheckIn, EveningLog, WorkoutSummary } from "@/lib/types";
 import { startWorkout } from "@/lib/workout-client";
+import { openLog } from "./LogSheet";
 import { IconChat, IconCheck, IconChevron, IconClose, IconPlay } from "./icons";
 import FoodCard, { foodStatus, useFoodView } from "./FoodCard";
 import { ReviewChip, ReviewSheet, useReview } from "./ReviewCard";
@@ -149,6 +150,13 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
       value: [d.walked && "Walked", d.evening ? EVENING[d.evening] ?? "Logged" : null].filter(Boolean).join(" · ") || (d.dinner ? d.dinner.title : "No dinner planned") }] : []),
   ];
 
+  // Tapping a circle is the quickest way to finish that item; it still only fills once the real thing is logged.
+  const quick: Partial<Record<RowId, { label: string; run: () => void }>> = !self ? {} : {
+    checkin: { label: d.checkIn ? "Edit check-in" : "Check in now", run: () => setSheet(true) },
+    ...(workoutDone ? {} : { workout: { label: "Log today's workout as already done", run: () => startWorkout(hasWorkout ? d.routine : null, date, !!d.program?.weekInfo?.deload, true) } }),
+    ...(adult && isToday ? { food: { label: "Log food", run: () => openLog("food") } } : {}),
+    ...(d.tonight ? { tonight: { label: d.walked ? "Undo walk after dinner" : "Mark walk after dinner done", run: () => logWalk(!d.walked) } } : {}),
+  };
   const tap = (id: RowId) => {
     if (id === "checkin" && self && !d.checkIn) return setSheet(true);
     if (id === next) return window.scrollTo({ top: 0, behavior: "smooth" });
@@ -216,12 +224,16 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
       <section className="today-list">
         {rows.map((row) => (
           <div key={row.id} id={`row-${row.id}`} className={`trow-wrap ${open === row.id ? "open" : ""}`}>
-            <button className="trow" onClick={() => tap(row.id)} aria-expanded={open === row.id}>
-              <span className={`trow-icon ${row.state}`} aria-hidden>{row.state === "done" ? <IconCheck size={14} /> : null}</span>
-              <span className="trow-title">{row.title}</span>
-              <span className="trow-value">{row.id === next ? <span className="accent-text">Up next ↑</span> : row.value}</span>
-              {row.id !== next && <span className={`trow-chev ${open === row.id ? "rot" : ""}`}><IconChevron size={16} /></span>}
-            </button>
+            <div className="trow">
+              {quick[row.id]
+                ? <button className={`trow-icon ${row.state}`} onClick={quick[row.id]!.run} aria-label={quick[row.id]!.label}>{row.state === "done" ? <IconCheck size={14} /> : null}</button>
+                : <span className={`trow-icon ${row.state}`} aria-hidden>{row.state === "done" ? <IconCheck size={14} /> : null}</span>}
+              <button className="trow-main" onClick={() => tap(row.id)} aria-expanded={open === row.id}>
+                <span className="trow-title">{row.title}</span>
+                <span className="trow-value">{row.id === next ? <span className="accent-text">Up next ↑</span> : row.value}</span>
+                {row.id !== next && <span className={`trow-chev ${open === row.id ? "rot" : ""}`}><IconChevron size={16} /></span>}
+              </button>
+            </div>
             {open === row.id && row.id !== next && <div className="trow-body">{body[row.id]}</div>}
           </div>
         ))}

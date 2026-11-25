@@ -116,7 +116,7 @@ export function foodStatus(v: View | null): { text: string; state: "done" | "par
 export default function FoodCard({ date, self, viewUser, mode = "full", data }: { date: string; self: boolean; viewUser: string | null; mode?: "summary" | "full"; data?: ReturnType<typeof useFoodView> }) {
   const own = useFoodView(date, viewUser, !data);
   const [v, setV, load] = data ?? own;
-  if (!v) return null;
+  if (!v) return mode === "summary" ? <p className="small muted" style={{ margin: 0 }}><span className="spinner" />Loading…</p> : null;
 
   async function remove(id: string) {
     setV((x) => x && { ...x, entries: x.entries.filter((e) => e.id !== id) });

@@ -119,7 +119,7 @@ export const fmtClock = (sec: number) => {
 };
 
 /** Start a workout from a routine (or an empty one) and open the logger. */
-export async function startWorkout(routine: Routine | null, date: string, deload = false) {
+export async function startWorkout(routine: Routine | null, date: string, deload = false, alreadyDone = false) {
   const active = loadActive();
   if (active && !confirm(`You have "${active.name}" in progress. Discard it and start a new workout?`)) {
     window.location.href = "/workout";
@@ -135,7 +135,10 @@ export async function startWorkout(routine: Routine | null, date: string, deload
   const w: ActiveWorkout = routine
     ? fromRoutine(routine, date, stats, deload)
     : { id: crypto.randomUUID(), date, name: "Workout", routineKey: null, startedAt: new Date().toISOString(), exercises: [], restEndsAt: null, restTotal: 0, notes: "" };
-  saveActive({ ...w, startedAt: "" }); // opens ready to go; the clock starts when you tap Start
+  // Opens ready to go; the clock starts when you tap Start. "Already done" opens straight into logging a finished session.
+  const est = routine?.estMinutes ?? 30;
+  const t = new Date(Date.now() - est * 60000);
+  saveActive({ ...w, startedAt: "", ...(alreadyDone ? { mode: "past" as const, past: { start: `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`, minutes: est } } : {}) });
   window.location.href = "/workout";
 }
 
