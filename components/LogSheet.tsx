@@ -11,7 +11,7 @@ import { NumberInput } from "./ui";
 type View = "menu" | "food" | "weight" | "import";
 export const openLog = (view: View = "menu", meal?: Meal) => window.dispatchEvent(new CustomEvent("open-log", { detail: { view, meal } }));
 
-/** The one place to log anything: food, weight, check-in, workouts, screenshots, habits. Opened by the center + button. */
+/** The one place to log anything: food, weight, check-in, workouts, screenshots. Opened by the center + button. */
 export default function LogSheet({ role }: { role: "parent" | "athlete" }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("menu");
@@ -59,7 +59,6 @@ export default function LogSheet({ role }: { role: "parent" | "athlete" }) {
             {adult && <button className="log-tile" onClick={() => setView("weight")}><IconScale size={24} /><b>Weight</b><span>Morning weigh-in</span></button>}
             <button className="log-tile" onClick={() => go("/today?checkin=1")}><IconCheck size={24} /><b>Check in</b><span>30 seconds</span></button>
             <button className="log-tile" onClick={() => setView("import")}><IconImage size={24} /><b>Workout screenshot</b><span>Apple Fitness, Strava</span></button>
-            <button className="log-tile" onClick={() => go("/today#habits")}><IconCheck size={24} /><b>Habits</b><span>Tick off today</span></button>
             <button className="log-tile" onClick={() => go(`/coach?draft=${encodeURIComponent("Log my workout: ")}`)}><IconChat size={24} /><b>Tell the coach</b><span>&ldquo;Walked 30 min&rdquo; or squats 3×8 @ 185</span></button>
           </div>
         )}

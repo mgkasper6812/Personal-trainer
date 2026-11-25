@@ -1,5 +1,5 @@
 import { listUsers, requireUser, resolveTarget } from "@/lib/auth";
-import { getAlerts, getCustomHabits, getHabitLog, getMealPlan, getRecipe, getCheckIn, getEvening, getProfile, getProgram, getYesterdayCheckIn, listWorkouts } from "@/lib/data";
+import { walkedOn, getAlerts, getHabitLog, getMealPlan, getRecipe, getCheckIn, getEvening, getProfile, getProgram, getYesterdayCheckIn, listWorkouts } from "@/lib/data";
 import { addDays, daysBetween, isDate, mondayOf, weekdayName } from "@/lib/dates";
 import { bad, handle, ok } from "@/lib/http";
 import { adjustRoutine, evaluate } from "@/lib/rules";
@@ -64,15 +64,11 @@ export const GET = handle(async (req) => {
     if (rec) dinner = { id: rec.id, title: rec.title, timeMin: rec.timeMin, plateTip: rec.plateTip };
   }
 
-  // Habits: program habits + the user's own, today's ticks and this week's ticks
-  const custom = await getCustomHabits(target.id);
-  const habitList = [...(p?.dailyHabits ?? []).map((name) => ({ name, custom: false })), ...custom.filter((c) => !(p?.dailyHabits ?? []).includes(c)).map((name) => ({ name, custom: true }))];
-  const habitLogs = await Promise.all(weekDates.map((d) => (d <= date ? getHabitLog(target.id, d) : Promise.resolve([] as string[]))));
-  const habitWeek = Object.fromEntries(weekDates.map((d, i) => [d, habitLogs[i]]));
+  // The post-dinner walk (ticked on Tonight)
+  const walked = walkedOn(await getHabitLog(target.id, date));
 
   return ok({
-    habitList,
-    habitWeek,
+    walked,
     dinner,
     me: { id: me.id, name: me.name, role: me.role },
     family,

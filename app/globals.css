@@ -437,3 +437,9 @@ i.key { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .trow-body > .hero { margin: 0; }
 .trow-body .food-summary > .row h2 { visibility: hidden; }
 .seg4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } .seg4 button { font-size: 13px; }
+.walk-tick { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--card2); cursor: pointer; }
+.walk-tick input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+label.walk-tick { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; font-weight: 500; }
+.walk-tick > span { flex: 1; min-width: 0; color: var(--text); }
+.trow-body .tonight > .row:first-child h2 { visibility: hidden; height: 0; }
+.trow-body .tonight > .row:first-child { margin-top: -8px; }

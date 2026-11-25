@@ -1,6 +1,6 @@
 import { ask, mockMode } from "./coach";
 import {
-  getCheckIn, getEvening, getFoodLog, getHabitLog, getCustomHabits, getProfile, getProgram, getWeights, listWorkouts,
+  getCheckIn, getEvening, getFoodLog, getHabitLog, walkedOn, getProfile, getProgram, getWeights, listWorkouts,
 } from "./data";
 import { db } from "./db";
 import { addDays, mondayOf, weekdayName } from "./dates";
@@ -22,7 +22,7 @@ You are writing the morning report on the user's previous day. Grade it honestly
 - Keep every line short and specific (numbers, foods, exercises). Max 3 items per list.`;
 
 const ATHLETE_RULES = `
-For this athlete: judge training done vs planned, sleep, recovery, check-ins, habits and any pain reports. Never mention food amounts,
+For this athlete: judge training done vs planned, sleep, recovery, check-ins and any pain reports. Never mention food amounts,
 calories, weight or body size; fueling advice must be about performance only. If pain was reported, make "get it checked / follow the
 pain plan" today's first focus.`;
 
@@ -30,14 +30,13 @@ pain plan" today's first focus.`;
 async function gather(user: User, day: string) {
   const [profile, rec, food, evening, checkIn, habitLog, custom, workouts, weights] = await Promise.all([
     getProfile(user.id), getProgram(user.id), getFoodLog(user.id, day), getEvening(user.id, day), getCheckIn(user.id, day),
-    getHabitLog(user.id, day), getCustomHabits(user.id), listWorkouts(user.id), getWeights(user.id),
+    getHabitLog(user.id, day), Promise.resolve(null), listWorkouts(user.id), getWeights(user.id),
   ]);
   const p = rec?.program;
   const dow = new Date(`${day}T12:00:00Z`).getUTCDay();
   const slot = rec && day >= rec.startDate ? p?.schedule.find((s) => s.dayOfWeek === dow) : null;
   const planned = slot?.routineKey ? p!.routines.find((r) => r.key === slot.routineKey)?.name ?? null : null;
   const done = workouts.filter((w) => w.date === day).map((w) => `${w.name} (${w.sets} sets${w.prs ? `, ${w.prs} PR` : ""})`);
-  const habits = [...(p?.dailyHabits ?? []), ...custom];
   const monday = mondayOf(day);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter((d) => d <= day);
   const athlete = profile?.kind === "athlete";
@@ -46,9 +45,9 @@ async function gather(user: User, day: string) {
     day: `${weekdayName(day)} ${day}`,
     workout: { planned: planned ?? (slot?.note ? `rest/busy (${slot.note})` : "rest"), done },
     checkIn: checkIn ? { sleepHours: checkIn.sleepHours, energy: checkIn.energy, soreness: checkIn.soreness, pain: checkIn.pain ? `${checkIn.painRegion} ${checkIn.painLevel}/10` : "none" } : "not done",
-    habits: { done: habitLog, missed: habits.filter((h) => !habitLog.includes(h)) },
     weekSoFar: { workoutDays: new Set(workouts.filter((w) => weekDays.includes(w.date)).map((w) => w.date)).size, plannedDays: weekDays.filter((d) => { const s = p?.schedule.find((x) => x.dayOfWeek === new Date(`${d}T12:00:00Z`).getUTCDay()); return !!s?.routineKey; }).length },
   };
+  if (!athlete) data.walkedAfterDinner = walkedOn(habitLog);
   if (!athlete) {
     const t = p?.nutrition;
     const w7 = weights.filter((w) => w.date <= day).slice(-14);

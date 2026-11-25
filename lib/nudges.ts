@@ -1,6 +1,6 @@
 import { ask, mockMode } from "./coach";
 import { postCoachMessage } from "./chat";
-import { getCheckIn, getFoodLog, getHabitLog, getProfile, getProgram, getWorkout, listWorkouts } from "./data";
+import { walkedOn, getCheckIn, getFoodLog, getHabitLog, getProfile, getProgram, getWorkout, listWorkouts } from "./data";
 import { db } from "./db";
 import { weekdayName } from "./dates";
 import { getExercise } from "./exercises";
@@ -31,8 +31,8 @@ export async function middayNote(user: User, date: string, localTime: string) {
     todaysSession: routine ? `${routine.name} (~${routine.estMinutes} min)` : slot?.note ?? "rest",
     workoutDone: workouts.some((w) => w.date === date),
     checkIn: checkIn ? { sleep: checkIn.sleepHours, energy: checkIn.energy, soreness: checkIn.soreness, pain: checkIn.pain } : "not done",
-    habitsDone: habits,
   };
+  if (!athlete) data.walkedAfterDinner = walkedOn(habits);
   if (!athlete) {
     const n = rec.program.nutrition;
     data.foodSoFar = { calories: food.reduce((a, e) => a + (e.calories ?? 0), 0), protein: food.reduce((a, e) => a + e.grams, 0), meals: [...new Set(food.map((e) => e.meal))], targets: { calories: n?.calories, protein: n?.proteinG } };

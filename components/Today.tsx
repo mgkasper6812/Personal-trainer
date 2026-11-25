@@ -3,6 +3,7 @@ import Link from "next/link";
 import BackButton from "./BackButton";
 import { useCallback, useEffect, useState } from "react";
 import { api, localDate } from "@/lib/client";
+import { WALK } from "@/lib/walk";
 import { getExercise, type Region } from "@/lib/exercises";
 import { ADULT_SYMPTOMS, ATHLETE_RED_FLAGS, type Readiness } from "@/lib/rules";
 import type { Routine } from "@/lib/schemas";
@@ -29,7 +30,7 @@ type TodayRes = {
   checkIn: CheckIn | null; evening: EveningLog | null;
   tonight: { tvTime: string; kitchenCloses: string | null; swaps: string[]; plan: unknown } | null;
   nutrition: { calories: number; proteinG: number; carbApproach: string } | null; fueling: string | null;
-  habitList: { name: string; custom: boolean }[]; habitWeek: Record<string, string[]>;
+  walked: boolean;
   weekStrip: { date: string; dow: number; routine: string | null; done: boolean }[];
   workoutsToday: WorkoutSummary[];
 };
@@ -40,7 +41,7 @@ const STATUS = { green: "Ready", yellow: "Adjusted", red: "Recovery" } as const;
 const EVENING: Record<string, string> = { plan: "As planned", bit: "Snacked a bit", off: "Off plan" };
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening"; };
 
-type RowId = "checkin" | "workout" | "food" | "tonight" | "habits";
+type RowId = "checkin" | "workout" | "food" | "tonight";
 
 export default function Today({ viewUser }: { viewUser: string | null }) {
   const [date, setDate] = useState(localDate());
@@ -61,7 +62,6 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     if (q.get("checkin") === "1" && !viewUser) { setSheet(true); window.history.replaceState(null, "", "/today"); }
-    if (window.location.hash === "#habits") { setOpen("habits"); setTimeout(() => document.getElementById("row-habits")?.scrollIntoView({ behavior: "smooth" }), 400); }
     try { setCiSkip(sessionStorage.getItem(`ft-ci-skip-${localDate()}`) === "1"); } catch {}
   }, [viewUser]);
 
@@ -76,6 +76,11 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
     api<{ latest: ChatLine | null }>("/api/chat?latest=1").then((x) => setCoach(x.latest && x.latest.kind !== "review" && new Date(x.latest.at).toDateString() === new Date().toDateString() ? x.latest : null), () => {});
   }, [d, self, isToday]);
 
+  async function logWalk(on: boolean) {
+    setD((x) => (x ? { ...x, walked: on } : x));
+    try { await api("/api/habits", { body: { date, habit: WALK, done: on } }); if (!on) await api("/api/habits", { body: { date, habit: "10–15 min walk after dinner", done: false } }); }
+    catch (e) { setErr((e as Error).message); load(); }
+  }
   async function logEvening(v: EveningLog) {
     setD((x) => (x ? { ...x, evening: v } : x));
     try { await api("/api/evening", { body: { date, value: v } }); load(); } catch (e) { setErr((e as Error).message); }
@@ -110,8 +115,6 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   );
 
   // ---- what's done, and what's next ----
-  const habitsDone = (d.habitWeek[date] ?? []).filter((h) => d.habitList.some((x) => x.name === h)).length;
-  const habitsAll = d.habitList.length > 0 && habitsDone >= d.habitList.length;
   const workoutDone = d.workoutsToday.length > 0;
   const preStart = !!d.startDate && date < d.startDate;
   const hasWorkout = !!d.routine && !preStart;
@@ -121,21 +124,19 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
   if (isToday) {
     if (self && !d.checkIn && !ciSkip) next = "checkin";
     else if (hasWorkout && !workoutDone) next = "workout";
-    else if (adult && d.tonight && hour >= 16 && !d.evening) next = "tonight";
+    else if (adult && d.tonight && hour >= 16 && (!d.evening || !d.walked)) next = "tonight";
     else if (adult && food[0] && fs.state !== "done") next = "food";
-    else if (d.habitList.length && !habitsAll) next = "habits";
-    else if (adult && d.tonight && !d.evening) next = "tonight";
+    else if (adult && d.tonight && (!d.evening || !d.walked)) next = "tonight";
     else next = "done";
   } else if (hasWorkout && !workoutDone) next = "workout";
 
   const planCard = <PlanCard d={d} date={date} self={self} />;
-  const habitsCard = <Habits d={d} date={date} self={self} onChange={(hw) => setD((x) => (x ? { ...x, habitWeek: hw } : x))} reload={load} />;
   const tonightCard = d.tonight ? <TonightCard collapsible={next !== "tonight"} dinner={d.dinner} tvTime={d.tonight.tvTime} kitchenCloses={d.tonight.kitchenCloses} swaps={d.tonight.swaps}
-    plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} /> : null;
+    plan={d.tonight.plan} evening={d.evening} onLog={self ? logEvening : undefined} walked={d.walked} onWalk={self ? logWalk : undefined} /> : null;
   const foodCard = <FoodCard date={date} self={self} viewUser={viewUser} mode="summary" data={food} />;
   const body: Record<RowId, React.ReactNode> = {
     checkin: d.checkIn ? <CheckInSummary c={d.checkIn} r={r ?? null} athlete={!adult} onEdit={self ? () => setSheet(true) : undefined} /> : <p className="muted small" style={{ margin: 0 }}>No check-in yet.</p>,
-    workout: planCard, food: foodCard, tonight: tonightCard, habits: habitsCard,
+    workout: planCard, food: foodCard, tonight: tonightCard,
   };
 
   type Row = { id: RowId; title: string; value: string; state: "done" | "part" | "todo" | "rest" };
@@ -144,9 +145,8 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
     { id: "workout", title: "Workout", state: workoutDone ? "done" : hasWorkout ? "todo" : "rest",
       value: workoutDone ? d.workoutsToday.map((w) => w.name).join(", ") : hasWorkout ? `${d.routine!.name} · ~${d.routine!.estMinutes} min` : preStart ? "Program hasn't started" : d.slotNote ?? "Rest day" },
     ...(adult ? [{ id: "food" as const, title: "Food", value: food[0] ? fs.text : "…", state: fs.state }] : []),
-    ...(d.tonight ? [{ id: "tonight" as const, title: "Tonight", state: (d.evening ? "done" : "todo") as Row["state"],
-      value: d.evening ? EVENING[d.evening] ?? "Logged" : d.dinner ? d.dinner.title : "No dinner planned" }] : []),
-    ...(d.habitList.length || self ? [{ id: "habits" as const, title: "Habits", value: d.habitList.length ? `${habitsDone}/${d.habitList.length}` : "Add one", state: (habitsAll ? "done" : habitsDone ? "part" : "todo") as Row["state"] }] : []),
+    ...(d.tonight ? [{ id: "tonight" as const, title: "Tonight", state: (d.evening && d.walked ? "done" : d.evening || d.walked ? "part" : "todo") as Row["state"],
+      value: [d.walked && "Walked", d.evening ? EVENING[d.evening] ?? "Logged" : null].filter(Boolean).join(" · ") || (d.dinner ? d.dinner.title : "No dinner planned") }] : []),
   ];
 
   const tap = (id: RowId) => {
@@ -197,7 +197,6 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
       {next === "workout" && planCard}
       {next === "tonight" && tonightCard}
       {next === "food" && foodCard}
-      {next === "habits" && habitsCard}
       {next === "done" && (
         <section className="hero">
           <h2 className="hero-title">All done today ✓</h2>
@@ -240,66 +239,6 @@ export default function Today({ viewUser }: { viewUser: string | null }) {
         </div>
       )}
     </main>
-  );
-}
-
-function Habits({ d, date, self, onChange, reload }: { d: TodayRes; date: string; self: boolean; onChange: (hw: Record<string, string[]>) => void; reload: () => void }) {
-  const [adding, setAdding] = useState(false);
-  const [txt, setTxt] = useState("");
-  const [editing, setEditing] = useState(false);
-  const done = d.habitWeek[date] ?? [];
-  const list = d.habitList;
-  const count = list.filter((h) => done.includes(h.name)).length;
-  async function toggle(name: string, on: boolean) {
-    const next = { ...d.habitWeek, [date]: on ? [...done, name] : done.filter((x) => x !== name) };
-    onChange(next);
-    await api("/api/habits", { body: { date, habit: name, done: on } }).catch(() => reload());
-  }
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!txt.trim()) return;
-    await api("/api/habits", { body: { add: txt } });
-    setTxt(""); setAdding(false); reload();
-  }
-  if (!list.length && !self) return null;
-  return (
-    <section className="card" id="habits">
-      <div className="row between">
-        <span className="eyebrow">Daily habits</span>
-        <span className="row" style={{ gap: 10 }}>
-          {list.length > 0 && <b className={`small ${count === list.length ? "accent-text" : ""}`}>{count}/{list.length} today</b>}
-          {self && list.some((h) => h.custom) && <button className="link small" onClick={() => setEditing(!editing)}>{editing ? "Done" : "Edit"}</button>}
-        </span>
-      </div>
-      <ul className="habit-list">
-        {list.map((h) => {
-          const on = done.includes(h.name);
-          return (
-            <li key={h.name}>
-              <label>
-                <input type="checkbox" checked={on} disabled={!self} onChange={(e) => toggle(h.name, e.target.checked)} />
-                <span className="habit-name">{h.name}</span>
-                {editing && h.custom ? (
-                  <button className="link danger-text small" onClick={async (e) => { e.preventDefault(); await api("/api/habits", { body: { remove: h.name } }); reload(); }}>Remove</button>
-                ) : (
-                  <span className="habit-dots" aria-label={`${h.name}: ${d.weekStrip.filter((x) => d.habitWeek[x.date]?.includes(h.name)).length} of 7 days this week`}>
-                    {d.weekStrip.map((x) => <i key={x.date} className={`${d.habitWeek[x.date]?.includes(h.name) ? "on" : ""} ${x.date > localDate() ? "future" : ""}`} />)}
-                  </span>
-                )}
-              </label>
-            </li>
-          );
-        })}
-      </ul>
-      {self && (adding ? (
-        <form className="row" style={{ flexWrap: "nowrap", marginTop: 10 }} onSubmit={add}>
-          <input autoFocus placeholder="e.g. 8,000 steps, 64 oz water" value={txt} onChange={(e) => setTxt(e.target.value)} />
-          <button type="submit" className="primary" disabled={!txt.trim()}>Add</button>
-        </form>
-      ) : <button className="link small" style={{ marginTop: 8 }} onClick={() => setAdding(true)}>+ Add a habit</button>)}
-      {d.nutrition && <p className="small" style={{ marginBottom: 0 }}><b>{d.nutrition.calories.toLocaleString()} cal · {d.nutrition.proteinG}g protein.</b> <span className="muted">{d.nutrition.carbApproach}</span></p>}
-      {d.fueling && <p className="small" style={{ marginBottom: 0 }}><b>Fuel:</b> <span className="muted">{d.fueling}</span></p>}
-    </section>
   );
 }
 
@@ -359,6 +298,7 @@ function PlanCard({ d, date, self }: { d: TodayRes; date: string; self: boolean 
           extra={<div className="rx">{rxParts(rt.exercises[info]).map((x) => <span key={x.label} className={x.weight ? "w" : ""}>{x.label}</span>)}</div>} />
       )}
       {self && <button className="primary big wide row" style={{ justifyContent: "center", gap: 8 }} onClick={() => startWorkout(rt, date, !!d.program?.weekInfo?.deload)}><IconPlay size={18} />Start workout</button>}
+      {d.fueling && <p className="small" style={{ margin: "12px 0 0" }}><b>Fuel:</b> <span className="muted">{d.fueling}</span></p>}
     </section>
   );
 }

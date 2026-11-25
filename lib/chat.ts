@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CoachError, MODEL, client, mockMode, recordUsage } from "./coach";
 import {
-  addAlert, getCheckIn, getCustomHabits, getHabitLog, getHealthBio, getMealPlan, getProfile, getProgram, getProteinLog,
-  getRecipe, getWeights, getYesterdayCheckIn, listRecipes, getWorkout, listWorkouts, saveCustomHabits, saveMealPlan, saveProgram, saveProteinLog,
+  addAlert, walkedOn, getCheckIn, getHabitLog, getHealthBio, getMealPlan, getProfile, getProgram, getProteinLog,
+  getRecipe, getWeights, getYesterdayCheckIn, listRecipes, getWorkout, listWorkouts, saveMealPlan, saveProgram, saveProteinLog,
 } from "./data";
 import { db } from "./db";
 import { addDays, isDate, mondayOf, weekdayName } from "./dates";
@@ -89,12 +89,6 @@ function tools(role: User["role"]): Anthropic.Beta.BetaTool[] {
       } },
     },
     {
-      name: "add_habit",
-      description: "Add a daily habit to the user's checklist.",
-      strict: true,
-      input_schema: { type: "object", additionalProperties: false, required: ["name"], properties: { name: { type: "string" } } },
-    },
-    {
       name: "log_workout",
       description: "Log a workout the user did (described in words or shown in a screenshot), or add heart-rate/cardio numbers to a workout already logged that day. Use 0 for any number you don't know; never invent sets they didn't mention.",
       strict: true,
@@ -155,7 +149,7 @@ function tools(role: User["role"]): Anthropic.Beta.BetaTool[] {
 async function context(user: User, date: string) {
   const [profile, rec, checkIn, yesterday, workouts, habits, habitLog] = await Promise.all([
     getProfile(user.id), getProgram(user.id), getCheckIn(user.id, date), getYesterdayCheckIn(user.id, date),
-    listWorkouts(user.id), getCustomHabits(user.id), getHabitLog(user.id, date),
+    listWorkouts(user.id), Promise.resolve(null), getHabitLog(user.id, date),
   ]);
   const p = rec?.program;
   const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
@@ -171,7 +165,7 @@ async function context(user: User, date: string) {
     checkIn: checkIn ? { ...checkIn, note: undefined } : "not done",
     readiness: readiness ? { status: readiness.status, reasons: readiness.reasons } : null,
     recentWorkouts: workouts.slice(0, 5).map((w) => `${w.date} ${w.name} (${w.sets} sets${w.prs ? `, ${w.prs} PR` : ""}${w.watch ? ", has heart-rate data" : ", no heart-rate data"})`),
-    habits: { list: [...(p?.dailyHabits ?? []), ...habits], doneToday: habitLog },
+    ...(user.role === "parent" ? { walkedAfterDinnerToday: walkedOn(habitLog) } : {}),
     profile,
   };
   try {
@@ -238,12 +232,6 @@ async function runTool(user: User, date: string, name: string, input: Record<str
     r.exercises[i] = { ...r.exercises[i], exerciseId: to.id };
     await saveProgram(user.id, rec);
     return { result: `Swapped ${old} for ${to.name} in ${r.name}.`, action: `${r.name}: ${old} → ${to.name}` };
-  }
-  if (name === "add_habit") {
-    const h = String(input.name).trim().slice(0, 60);
-    const list = await getCustomHabits(user.id);
-    if (h && !list.includes(h)) await saveCustomHabits(user.id, [...list, h].slice(0, 12));
-    return { result: `Added habit "${h}".`, action: `New habit: ${h}` };
   }
   if (name === "log_food" && user.role === "parent") {
     const meal = (["breakfast", "lunch", "dinner", "snack"] as const).find((m) => m === input.meal) ?? "snack";

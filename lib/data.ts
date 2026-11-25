@@ -106,6 +106,7 @@ export const getCustomHabits = async (uid: string) => (await db().get<string[]>(
 export const saveCustomHabits = (uid: string, h: string[]) => db().set(`habits-custom:${uid}`, h);
 export const getHabitLog = async (uid: string, date: string) => (await db().get<string[]>(`habitlog:${uid}:${date}`)) ?? [];
 export const saveHabitLog = (uid: string, date: string, done: string[]) => db().set(`habitlog:${uid}:${date}`, done);
+export { WALK, walkedOn } from "./walk";
 
 // ---- Food log (per day) and saved quick-add foods. Stored under the original protein keys; `grams` is protein,
 // so older protein-only entries keep working (their other nutrients are simply unknown).

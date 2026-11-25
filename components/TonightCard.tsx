@@ -12,7 +12,8 @@ const t12 = (t: string | null) => {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 };
 
-export default function TonightCard({ tvTime, kitchenCloses, swaps, plan, evening, onLog, collapsible = false, dinner = null }: {
+export default function TonightCard({ tvTime, kitchenCloses, swaps, plan, evening, onLog, collapsible = false, dinner = null, walked, onWalk }: {
+  walked?: boolean; onWalk?: (v: boolean) => void;
   dinner?: { id: string; title: string; timeMin: number; plateTip: string } | null;
   tvTime: string | null; kitchenCloses: string | null; swaps: string[]; plan: unknown;
   evening?: EveningLog | null; onLog?: (v: EveningLog) => void; collapsible?: boolean;
@@ -74,6 +75,12 @@ export default function TonightCard({ tvTime, kitchenCloses, swaps, plan, evenin
         )}
       </>)}
 
+      {(onWalk || walked !== undefined) && (
+        <label className="walk-tick">
+          <input type="checkbox" checked={!!walked} disabled={!onWalk} onChange={(e) => onWalk?.(e.target.checked)} />
+          <span><b>Walked after dinner</b><span className="small muted"> · 10–15 min</span></span>
+        </label>
+      )}
       {onLog && (
         <section>
           <h3>How did the evening go?</h3>
